@@ -1,7 +1,7 @@
 import "./App.css";
 import { useEffect, useState } from "react";
 
-import Sidebar from "./components/Sidebar";
+import Sidebar from "./components/sidebar";
 import Topbar from "./components/Topbar";
 
 import Dashboard from "./pages/Dashboard";
