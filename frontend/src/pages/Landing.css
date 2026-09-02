@@ -1,0 +1,1482 @@
+/* ============================================================
+   AVEKSHA NETRA
+   LANDING PAGE
+   OLIVE GREEN + DIGITAL CAMOUFLAGE
+   ============================================================ */
+
+
+* {
+  box-sizing: border-box;
+}
+
+
+html {
+  scroll-behavior: smooth;
+}
+
+
+.landing-page {
+
+  min-height: 100vh;
+
+  background:
+    #11150b;
+
+  color: #e7eadc;
+
+  font-family:
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  overflow-x: hidden;
+
+}
+
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+
+.landing-navbar {
+
+  position: fixed;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+
+  height: 76px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding:
+    0 6%;
+
+  background:
+    rgba(12, 16, 8, 0.94);
+
+  border-bottom:
+    1px solid rgba(145, 154, 72, 0.22);
+
+  backdrop-filter:
+    blur(12px);
+
+  z-index: 1000;
+
+}
+
+
+/* BRAND */
+
+.brand {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+}
+
+
+.brand-mark {
+
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid #8f9b43;
+
+  color:
+    #a7b45a;
+
+  font-size: 12px;
+
+  font-weight: 800;
+
+  letter-spacing: 1px;
+
+}
+
+
+.brand-text {
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+.brand-text strong {
+
+  color: #dfe4cf;
+
+  font-size: 15px;
+
+  letter-spacing: 2px;
+
+}
+
+
+.brand-text span {
+
+  margin-top: 3px;
+
+  color: #879052;
+
+  font-size: 8px;
+
+  letter-spacing: 1.5px;
+
+}
+
+
+/* NAV LINKS */
+
+.nav-links {
+
+  display: flex;
+
+  gap: 34px;
+
+}
+
+
+.nav-links a {
+
+  color:
+    #9da38b;
+
+  text-decoration: none;
+
+  font-size: 11px;
+
+  letter-spacing: 1px;
+
+  transition:
+    0.25s;
+
+}
+
+
+.nav-links a:hover {
+
+  color:
+    #b5c461;
+
+}
+
+
+/* LOGIN */
+
+.nav-login {
+
+  padding:
+    10px 22px;
+
+  border:
+    1px solid #87943d;
+
+  background:
+    transparent;
+
+  color:
+    #bdc96a;
+
+  cursor: pointer;
+
+  font-size: 11px;
+
+  letter-spacing: 1.5px;
+
+  transition:
+    0.25s;
+
+}
+
+
+.nav-login:hover {
+
+  background:
+    #78852f;
+
+  color:
+    #101308;
+
+}
+
+
+/* ============================================================
+   HERO
+   ============================================================ */
+
+.hero-section {
+
+  position: relative;
+
+  min-height: 720px;
+
+  padding:
+    160px 7% 80px;
+
+  display: flex;
+
+  align-items: center;
+
+  overflow: hidden;
+
+  border-bottom:
+    1px solid rgba(144, 155, 65, 0.25);
+
+}
+
+
+/* ============================================================
+   DIGITAL CAMOUFLAGE
+   ============================================================ */
+
+.camouflage {
+
+  position: absolute;
+
+  inset: 0;
+
+  opacity: 0.32;
+
+  background-color:
+    #202711;
+
+  background-image:
+
+    linear-gradient(
+      45deg,
+      #343b1b 25%,
+      transparent 25%
+    ),
+
+    linear-gradient(
+      -45deg,
+      #171d0d 25%,
+      transparent 25%
+    ),
+
+    linear-gradient(
+      45deg,
+      transparent 75%,
+      #3b421d 75%
+    ),
+
+    linear-gradient(
+      -45deg,
+      transparent 75%,
+      #11160a 75%
+    );
+
+  background-size:
+    42px 42px;
+
+  background-position:
+    0 0,
+    0 21px,
+    21px -21px,
+    -21px 0;
+
+}
+
+
+/* ============================================================
+   GRID
+   ============================================================ */
+
+.hero-grid {
+
+  position: absolute;
+
+  inset: 0;
+
+  background-image:
+
+    linear-gradient(
+      rgba(143, 155, 65, 0.05) 1px,
+      transparent 1px
+    ),
+
+    linear-gradient(
+      90deg,
+      rgba(143, 155, 65, 0.05) 1px,
+      transparent 1px
+    );
+
+  background-size:
+    50px 50px;
+
+  mask-image:
+    linear-gradient(
+      to bottom,
+      black,
+      transparent
+    );
+
+}
+
+
+/* ============================================================
+   HERO CONTENT
+   ============================================================ */
+
+.hero-content {
+
+  position: relative;
+
+  width: 58%;
+
+  z-index: 2;
+
+}
+
+
+.system-label {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  color:
+    #a8b45b;
+
+  font-size: 11px;
+
+  letter-spacing: 2px;
+
+  margin-bottom: 25px;
+
+}
+
+
+.system-dot {
+
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background:
+    #a7b74f;
+
+  box-shadow:
+    0 0 12px #9baa3d;
+
+}
+
+
+.hero-content h1 {
+
+  margin: 0;
+
+  font-size:
+    clamp(55px, 8vw, 105px);
+
+  line-height: 0.9;
+
+  letter-spacing: -4px;
+
+  font-weight: 800;
+
+  color:
+    #e4e7d7;
+
+}
+
+
+.hero-content h1 span {
+
+  display: block;
+
+  color:
+    #919f43;
+
+}
+
+
+.hero-line {
+
+  width: 70px;
+
+  height: 2px;
+
+  margin:
+    28px 0;
+
+  background:
+    #9ca94b;
+
+}
+
+
+.hero-content h2 {
+
+  margin: 0;
+
+  color:
+    #cbd0bd;
+
+  font-size: 18px;
+
+  line-height: 1.6;
+
+  letter-spacing: 2px;
+
+  font-weight: 500;
+
+}
+
+
+.hero-content p {
+
+  max-width: 570px;
+
+  margin:
+    22px 0 30px;
+
+  color:
+    #969d89;
+
+  font-size: 14px;
+
+  line-height: 1.9;
+
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.hero-buttons {
+
+  display: flex;
+
+  gap: 15px;
+
+}
+
+
+.primary-button {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 20px;
+
+  padding:
+    15px 23px;
+
+  border:
+    1px solid #9ca94c;
+
+  background:
+    #6e7c2d;
+
+  color:
+    #f0f1e7;
+
+  cursor: pointer;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.3px;
+
+  transition:
+    0.3s;
+
+}
+
+
+.primary-button span {
+
+  font-size: 18px;
+
+}
+
+
+.primary-button:hover {
+
+  background:
+    #8b983b;
+
+  transform:
+    translateY(-2px);
+
+}
+
+
+.secondary-button {
+
+  padding:
+    15px 25px;
+
+  border:
+    1px solid rgba(156, 169, 76, 0.5);
+
+  background:
+    rgba(20, 25, 12, 0.65);
+
+  color:
+    #b3bc91;
+
+  cursor: pointer;
+
+  font-size: 11px;
+
+  letter-spacing: 1.3px;
+
+}
+
+
+.secondary-button:hover {
+
+  border-color:
+    #a8b45b;
+
+  color:
+    #dce1c9;
+
+}
+
+
+/* ============================================================
+   STATUS
+   ============================================================ */
+
+.hero-status {
+
+  display: flex;
+
+  gap: 28px;
+
+  margin-top: 40px;
+
+  color:
+    #727a63;
+
+  font-size: 9px;
+
+  letter-spacing: 1.3px;
+
+}
+
+
+.hero-status div:first-child {
+
+  color:
+    #aab762;
+
+}
+
+
+.status-light {
+
+  display: inline-block;
+
+  width: 6px;
+  height: 6px;
+
+  margin-right: 7px;
+
+  border-radius: 50%;
+
+  background:
+    #9baa3d;
+
+}
+
+
+/* ============================================================
+   RADAR VISUAL
+   ============================================================ */
+
+.hero-visual {
+
+  position: absolute;
+
+  right: 7%;
+
+  width: 37vw;
+  height: 37vw;
+
+  max-width: 500px;
+  max-height: 500px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+}
+
+
+.radar {
+
+  position: relative;
+
+  width: 70%;
+  height: 70%;
+
+  border:
+    1px solid rgba(159, 175, 72, 0.45);
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(118, 133, 44, 0.15),
+      rgba(10, 14, 6, 0.2)
+    );
+
+  box-shadow:
+    0 0 70px
+    rgba(132, 151, 43, 0.12);
+
+}
+
+
+.radar-ring {
+
+  position: absolute;
+
+  border:
+    1px solid rgba(159, 175, 72, 0.25);
+
+  border-radius: 50%;
+
+  inset: 15%;
+
+}
+
+
+.ring-two {
+  inset: 30%;
+}
+
+
+.ring-three {
+  inset: 45%;
+}
+
+
+.radar-cross {
+
+  position: absolute;
+
+  background:
+    rgba(159, 175, 72, 0.18);
+
+}
+
+
+.horizontal {
+
+  width: 100%;
+  height: 1px;
+
+  top: 50%;
+
+}
+
+
+.vertical {
+
+  width: 1px;
+  height: 100%;
+
+  left: 50%;
+
+}
+
+
+.radar-sweep {
+
+  position: absolute;
+
+  width: 50%;
+  height: 1px;
+
+  top: 50%;
+  left: 50%;
+
+  transform-origin:
+    left center;
+
+  background:
+    linear-gradient(
+      90deg,
+      #b3c357,
+      transparent
+    );
+
+  animation:
+    radarSweep 4s linear infinite;
+
+}
+
+
+@keyframes radarSweep {
+
+  from {
+    transform:
+      rotate(0deg);
+  }
+
+  to {
+    transform:
+      rotate(360deg);
+  }
+
+}
+
+
+.radar-point {
+
+  position: absolute;
+
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background:
+    #aab94c;
+
+  box-shadow:
+    0 0 14px #aab94c;
+
+}
+
+
+.point-one {
+
+  top: 30%;
+  left: 64%;
+
+}
+
+
+.point-two {
+
+  top: 62%;
+  left: 32%;
+
+}
+
+
+.point-three {
+
+  top: 70%;
+  left: 70%;
+
+}
+
+
+/* ============================================================
+   VISUAL CARD
+   ============================================================ */
+
+.visual-card {
+
+  position: absolute;
+
+  right: 0;
+
+  bottom: 15%;
+
+  padding:
+    15px 20px;
+
+  min-width: 190px;
+
+  background:
+    rgba(14, 18, 8, 0.88);
+
+  border:
+    1px solid rgba(151, 165, 67, 0.45);
+
+}
+
+
+.visual-card span {
+
+  display: block;
+
+  color:
+    #747d60;
+
+  font-size: 8px;
+
+  letter-spacing: 1.5px;
+
+}
+
+
+.visual-card strong {
+
+  display: block;
+
+  margin:
+    6px 0;
+
+  color:
+    #b2bf5c;
+
+  font-size: 18px;
+
+  letter-spacing: 2px;
+
+}
+
+
+.visual-card small {
+
+  color:
+    #777e6b;
+
+  font-size: 8px;
+
+}
+
+
+.visual-coordinates {
+
+  position: absolute;
+
+  left: 8%;
+
+  bottom: 12%;
+
+  color:
+    #70795e;
+
+  font-family:
+    monospace;
+
+  font-size: 9px;
+
+  line-height: 1.8;
+
+}
+
+
+/* ============================================================
+   SECTIONS
+   ============================================================ */
+
+.about-section,
+.capabilities-section,
+.workflow-section {
+
+  padding:
+    110px 7%;
+
+}
+
+
+.section-heading span {
+
+  color:
+    #8f9b43;
+
+  font-size: 10px;
+
+  letter-spacing: 2px;
+
+}
+
+
+.section-heading h2 {
+
+  margin:
+    15px 0 0;
+
+  font-size:
+    clamp(30px, 4vw, 48px);
+
+  font-weight: 300;
+
+  line-height: 1.1;
+
+  color:
+    #d9deca;
+
+}
+
+
+.section-heading h2 strong {
+
+  display: block;
+
+  color:
+    #8f9c42;
+
+  font-weight: 700;
+
+}
+
+
+.centered {
+
+  text-align: center;
+
+}
+
+
+/* ============================================================
+   ABOUT
+   ============================================================ */
+
+.about-section {
+
+  border-bottom:
+    1px solid rgba(143, 155, 65, 0.15);
+
+}
+
+
+.about-text {
+
+  max-width: 850px;
+
+  margin:
+    40px 0 0;
+
+  color:
+    #929a81;
+
+  font-size: 16px;
+
+  line-height: 2;
+
+}
+
+
+/* ============================================================
+   CAPABILITIES
+   ============================================================ */
+
+.capabilities-section {
+
+  background:
+    rgba(24, 30, 13, 0.5);
+
+}
+
+
+.capability-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 15px;
+
+  margin-top: 55px;
+
+}
+
+
+.capability-card {
+
+  position: relative;
+
+  padding:
+    35px 28px;
+
+  min-height: 210px;
+
+  background:
+    rgba(22, 27, 12, 0.72);
+
+  border:
+    1px solid rgba(143, 155, 65, 0.2);
+
+  transition:
+    0.3s;
+
+}
+
+
+.capability-card:hover {
+
+  transform:
+    translateY(-5px);
+
+  border-color:
+    rgba(158, 174, 73, 0.6);
+
+}
+
+
+.capability-number {
+
+  position: absolute;
+
+  top: 18px;
+  right: 20px;
+
+  color:
+    #41482b;
+
+  font-size: 11px;
+
+}
+
+
+.capability-icon {
+
+  color:
+    #9da94b;
+
+  font-size: 28px;
+
+}
+
+
+.capability-card h3 {
+
+  margin:
+    22px 0 10px;
+
+  color:
+    #d0d5c1;
+
+  font-size: 13px;
+
+  letter-spacing: 1.5px;
+
+}
+
+
+.capability-card p {
+
+  margin: 0;
+
+  color:
+    #7f876e;
+
+  font-size: 12px;
+
+  line-height: 1.7;
+
+}
+
+
+/* ============================================================
+   WORKFLOW
+   ============================================================ */
+
+.workflow-section {
+
+  border-bottom:
+    1px solid rgba(143, 155, 65, 0.15);
+
+}
+
+
+.workflow {
+
+  display: flex;
+
+  align-items: center;
+
+  margin-top: 60px;
+
+}
+
+
+.workflow-item {
+
+  flex: 1;
+
+  text-align: center;
+
+}
+
+
+.workflow-number {
+
+  width: 55px;
+  height: 55px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin:
+    0 auto 18px;
+
+  border:
+    1px solid #7f8d3d;
+
+  border-radius: 50%;
+
+  color:
+    #a9b55a;
+
+  font-size: 12px;
+
+}
+
+
+.workflow-item h3 {
+
+  margin: 0 0 8px;
+
+  color:
+    #d4d9c8;
+
+  font-size: 13px;
+
+  letter-spacing: 2px;
+
+}
+
+
+.workflow-item p {
+
+  margin: 0;
+
+  color:
+    #777f68;
+
+  font-size: 11px;
+
+}
+
+
+.workflow-line {
+
+  width: 60px;
+
+  height: 1px;
+
+  background:
+    rgba(144, 158, 67, 0.4);
+
+}
+
+
+/* ============================================================
+   CTA
+   ============================================================ */
+
+.cta-section {
+
+  padding:
+    100px 7%;
+
+}
+
+
+.cta-box {
+
+  position: relative;
+
+  padding:
+    75px 40px;
+
+  text-align: center;
+
+  background:
+    #1b220e;
+
+  border:
+    1px solid rgba(151, 166, 69, 0.35);
+
+  overflow: hidden;
+
+}
+
+
+.cta-box::before {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  opacity: 0.15;
+
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      #7f8c3a 10px,
+      #7f8c3a 11px
+    );
+
+}
+
+
+.cta-box > * {
+
+  position: relative;
+
+}
+
+
+.cta-box > span {
+
+  color:
+    #909c42;
+
+  font-size: 10px;
+
+  letter-spacing: 2px;
+
+}
+
+
+.cta-box h2 {
+
+  margin:
+    20px 0;
+
+  color:
+    #e0e4d4;
+
+  font-size:
+    clamp(30px, 4vw, 50px);
+
+  font-weight: 300;
+
+}
+
+
+.cta-box h2 strong {
+
+  color:
+    #99a747;
+
+}
+
+
+.cta-box p {
+
+  margin-bottom: 30px;
+
+  color:
+    #858d74;
+
+  font-size: 13px;
+
+}
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+footer {
+
+  padding:
+    25px 7%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  border-top:
+    1px solid rgba(143, 155, 65, 0.15);
+
+  color:
+    #656d58;
+
+  font-size: 9px;
+
+  letter-spacing: 1px;
+
+}
+
+
+footer div:first-child {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 4px;
+
+}
+
+
+footer strong {
+
+  color:
+    #929d48;
+
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+  .nav-links {
+
+    display: none;
+
+  }
+
+
+  .hero-section {
+
+    padding:
+      140px 7% 80px;
+
+  }
+
+
+  .hero-content {
+
+    width: 100%;
+
+  }
+
+
+  .hero-visual {
+
+    opacity: 0.2;
+
+    right: -15%;
+
+    width: 500px;
+    height: 500px;
+
+  }
+
+
+  .capability-grid {
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+  }
+
+
+  .workflow {
+
+    flex-direction: column;
+
+    gap: 25px;
+
+  }
+
+
+  .workflow-line {
+
+    width: 1px;
+    height: 35px;
+
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .landing-navbar {
+
+    padding:
+      0 20px;
+
+  }
+
+
+  .brand-text span {
+
+    display: none;
+
+  }
+
+
+  .nav-login {
+
+    padding:
+      8px 14px;
+
+  }
+
+
+  .hero-content h1 {
+
+    font-size: 55px;
+
+  }
+
+
+  .hero-content h2 {
+
+    font-size: 14px;
+
+  }
+
+
+  .hero-buttons {
+
+    flex-direction: column;
+
+  }
+
+
+  .hero-status {
+
+    flex-direction: column;
+
+    gap: 10px;
+
+  }
+
+
+  .capability-grid {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  footer {
+
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 15px;
+
+  }
+
+}

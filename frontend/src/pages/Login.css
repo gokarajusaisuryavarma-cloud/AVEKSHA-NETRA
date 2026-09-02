@@ -1,0 +1,501 @@
+/* ==================================================
+   AVEKSHA NETRA LOGIN
+   ================================================== */
+
+.login-page {
+
+    min-height: 100vh;
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    overflow: hidden;
+
+    background:
+        #171b16;
+
+    color: #d7ddc8;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+}
+
+
+/* ==================================================
+   BACKGROUND
+   ================================================== */
+
+.login-background {
+
+    position: absolute;
+
+    inset: 0;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            135deg,
+            #172016 0%,
+            #26321d 35%,
+            #151914 70%,
+            #20281b 100%
+        );
+}
+
+
+/* Digital camouflage */
+
+.camouflage-pattern {
+
+    position: absolute;
+
+    inset: -100px;
+
+    opacity: 0.18;
+
+    background-image:
+
+        linear-gradient(
+            90deg,
+            transparent 50%,
+            #59664a 50%
+        ),
+
+        linear-gradient(
+            0deg,
+            transparent 50%,
+            #303b28 50%
+        );
+
+    background-size:
+        90px 90px,
+        70px 70px;
+
+    transform:
+        rotate(-8deg)
+        scale(1.2);
+
+}
+
+
+/* ==================================================
+   LOGIN CONTAINER
+   ================================================== */
+
+.login-container {
+
+    position: relative;
+
+    z-index: 5;
+
+    width: 430px;
+
+    padding: 42px;
+
+    border:
+
+        1px solid
+        rgba(142, 158, 105, 0.45);
+
+    background:
+
+        rgba(
+            18,
+            23,
+            18,
+            0.92
+        );
+
+    box-shadow:
+
+        0 25px 80px
+        rgba(0, 0, 0, 0.55),
+
+        inset 0 0 40px
+        rgba(115, 135, 80, 0.04);
+
+    backdrop-filter:
+        blur(12px);
+}
+
+
+/* ==================================================
+   BACK BUTTON
+   ================================================== */
+
+.back-button {
+
+    border: none;
+
+    background: transparent;
+
+    color: #8d9b73;
+
+    cursor: pointer;
+
+    font-size: 12px;
+
+    letter-spacing: 2px;
+
+    margin-bottom: 25px;
+
+}
+
+.back-button:hover {
+
+    color: #d4dfbd;
+
+}
+
+
+/* ==================================================
+   HEADER
+   ================================================== */
+
+.login-header {
+
+    text-align: center;
+
+    margin-bottom: 35px;
+
+}
+
+
+.login-mark {
+
+    width: 54px;
+
+    height: 54px;
+
+    margin:
+        0 auto 15px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border:
+
+        1px solid
+        #7f8d61;
+
+    color: #aeba91;
+
+    font-weight: bold;
+
+    letter-spacing: 2px;
+
+}
+
+
+.login-header h1 {
+
+    margin: 0;
+
+    color: #e3e8d8;
+
+    font-size: 36px;
+
+    letter-spacing: 6px;
+
+}
+
+
+.login-subtitle {
+
+    margin-top: 5px;
+
+    color: #9ca98a;
+
+    font-size: 17px;
+
+    letter-spacing: 7px;
+
+}
+
+
+.login-header p {
+
+    margin-top: 18px;
+
+    color: #727e65;
+
+    font-size: 11px;
+
+    letter-spacing: 3px;
+
+}
+
+
+/* ==================================================
+   FORM
+   ================================================== */
+
+.login-form {
+
+    display: flex;
+
+    flex-direction: column;
+
+}
+
+
+.form-title {
+
+    color: #b6c39b;
+
+    font-size: 13px;
+
+    letter-spacing: 3px;
+
+}
+
+
+.form-line {
+
+    height: 1px;
+
+    margin:
+        12px 0 25px;
+
+    background:
+        rgba(
+            142,
+            158,
+            105,
+            0.3
+        );
+
+}
+
+
+.login-form label {
+
+    margin-bottom: 8px;
+
+    color: #7f8c6d;
+
+    font-size: 10px;
+
+    letter-spacing: 2px;
+
+}
+
+
+.login-form input {
+
+    box-sizing: border-box;
+
+    width: 100%;
+
+    padding: 14px;
+
+    margin-bottom: 22px;
+
+    border:
+
+        1px solid
+        #394532;
+
+    outline: none;
+
+    background:
+        #11150f;
+
+    color:
+        #dce5ca;
+
+    font-size: 14px;
+
+}
+
+
+.login-form input:focus {
+
+    border-color:
+        #879666;
+
+    box-shadow:
+        0 0 0 1px
+        rgba(135, 150, 102, 0.15);
+
+}
+
+
+.login-form input::placeholder {
+
+    color:
+        #515b4b;
+
+}
+
+
+/* ==================================================
+   ERROR
+   ================================================== */
+
+.login-error {
+
+    margin-bottom: 18px;
+
+    padding: 11px;
+
+    border:
+        1px solid
+        rgba(170, 75, 60, 0.5);
+
+    background:
+        rgba(100, 35, 30, 0.2);
+
+    color:
+        #d99587;
+
+    font-size: 12px;
+
+}
+
+
+/* ==================================================
+   LOGIN BUTTON
+   ================================================== */
+
+.login-submit {
+
+    padding: 15px;
+
+    border:
+
+        1px solid
+        #7d8c60;
+
+    background:
+        #52623d;
+
+    color:
+        #edf2e4;
+
+    cursor: pointer;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    letter-spacing: 2px;
+
+    transition:
+        0.2s ease;
+
+}
+
+
+.login-submit:hover {
+
+    background:
+        #66794c;
+
+    border-color:
+        #a2b57d;
+
+}
+
+
+.login-submit:disabled {
+
+    opacity: 0.55;
+
+    cursor:
+        not-allowed;
+
+}
+
+
+/* ==================================================
+   SECURITY STATUS
+   ================================================== */
+
+.security-status {
+
+    margin-top: 25px;
+
+    text-align: center;
+
+    color: #68755b;
+
+    font-size: 9px;
+
+    letter-spacing: 2px;
+
+}
+
+
+.status-dot {
+
+    display: inline-block;
+
+    width: 6px;
+
+    height: 6px;
+
+    margin-right: 7px;
+
+    border-radius: 50%;
+
+    background: #8da55d;
+
+    box-shadow:
+        0 0 8px
+        rgba(141, 165, 93, 0.8);
+
+}
+
+
+/* ==================================================
+   FOOTER
+   ================================================== */
+
+.login-footer {
+
+    margin-top: 25px;
+
+    padding-top: 18px;
+
+    border-top:
+        1px solid
+        rgba(120, 135, 95, 0.15);
+
+    text-align: center;
+
+    color: #4f5948;
+
+    font-size: 8px;
+
+    letter-spacing: 1.5px;
+
+}
+
+
+/* ==================================================
+   MOBILE
+   ================================================== */
+
+@media (max-width: 600px) {
+
+    .login-container {
+
+        width: calc(100% - 40px);
+
+        padding: 30px 25px;
+
+    }
+
+}

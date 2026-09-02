@@ -1,0 +1,421 @@
+/* ==================================================
+   AVEKSHA NETRA
+   GLOBAL STYLES
+   ================================================== */
+
+:root {
+  font-family:
+    Inter,
+    "Segoe UI",
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  color: #d7ddc8;
+
+  background: #11150f;
+
+  font-synthesis: none;
+
+  text-rendering: optimizeLegibility;
+
+  -webkit-font-smoothing: antialiased;
+
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* ==================================================
+   GLOBAL RESET
+   ================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+
+html {
+  min-height: 100%;
+}
+
+
+body {
+  min-height: 100vh;
+
+  margin: 0;
+
+  background:
+    #11150f;
+
+  color:
+    #d7ddc8;
+}
+
+
+/* ==================================================
+   REMOVE DEFAULT BROWSER SPACING
+   ================================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+}
+
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+
+/* ==================================================
+   BUTTON RESET
+   ================================================== */
+
+button {
+  border: 0;
+
+  outline: none;
+}
+
+
+/* ==================================================
+   LINKS
+   ================================================== */
+
+a {
+  color: inherit;
+
+  text-decoration: none;
+}
+
+
+/* ==================================================
+   IMAGES
+   ================================================== */
+
+img {
+  max-width: 100%;
+
+  display: block;
+}
+
+
+/* ==================================================
+   SCROLLBAR
+   ================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+
+  height: 8px;
+}
+
+
+::-webkit-scrollbar-track {
+  background:
+    #11150f;
+}
+
+
+::-webkit-scrollbar-thumb {
+  background:
+    #3d4930;
+
+  border-radius:
+    4px;
+}
+
+
+::-webkit-scrollbar-thumb:hover {
+  background:
+    #566642;
+}
+
+
+/* ==================================================
+   SELECTION
+   ================================================== */
+
+::selection {
+  background:
+    rgba(130, 150, 90, 0.35);
+
+  color:
+    #edf2e4;
+}
+/* =========================================================
+   AVEKSHA NETRA - DASHBOARD CAMERA CARD
+   ========================================================= */
+
+.dashboard-camera {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   CAMERA VIDEO AREA
+   ========================================================= */
+
+.dashboard-camera .feed-area {
+  width: 100%;
+  height: 300px;
+  min-height: 300px;
+  max-height: 300px;
+
+  background: #05090c;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* =========================================================
+   LIVE VIDEO
+   ========================================================= */
+
+.dashboard-camera .live-feed {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  background: #05090c;
+}
+
+
+/* =========================================================
+   CAMERA FOOTER
+   ========================================================= */
+
+.dashboard-camera .feed-footer {
+  min-height: 76px;
+
+  padding: 16px 20px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  background: #0b1217;
+
+  border-top: 1px solid #1d2b33;
+}
+
+
+/* CAMERA NAME + LOCATION */
+
+.dashboard-camera .feed-footer > div:first-child {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 5px;
+
+  min-width: 0;
+}
+
+
+.dashboard-camera .feed-footer strong {
+  color: #f1f5f7;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+
+.dashboard-camera .feed-footer span {
+  color: #71838d;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   CAMERA ACTIONS
+   ========================================================= */
+
+.dashboard-camera .camera-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  flex-shrink: 0;
+}
+
+
+/* EDIT */
+
+.dashboard-camera .camera-edit-button {
+  padding: 8px 12px;
+
+  border: 1px solid #334851;
+
+  background: transparent;
+
+  color: #8faebc;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  letter-spacing: 1px;
+
+  cursor: pointer;
+
+  border-radius: 3px;
+}
+
+
+.dashboard-camera .camera-edit-button:hover {
+  border-color: #9aaa38;
+
+  color: #c4d24b;
+}
+
+
+/* DELETE */
+
+.dashboard-camera .camera-delete-button {
+  padding: 8px 12px;
+
+  border: 1px solid #63383b;
+
+  background: transparent;
+
+  color: #d87878;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  letter-spacing: 1px;
+
+  cursor: pointer;
+
+  border-radius: 3px;
+}
+
+
+.dashboard-camera .camera-delete-button:hover {
+  background: #351719;
+
+  border-color: #d05b5b;
+
+  color: #ff8585;
+}
+
+
+/* DISABLED DELETE */
+
+.dashboard-camera .camera-delete-button:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   ACTIVE / OFFLINE STATUS
+   ========================================================= */
+
+.dashboard-camera .feed-status {
+  padding: 5px 8px;
+
+  border: 1px solid #39474d;
+
+  color: #65757c;
+
+  font-size: 9px;
+
+  letter-spacing: 1px;
+
+  border-radius: 3px;
+}
+
+
+.dashboard-camera .feed-status.active {
+  border-color: #285d4e;
+
+  color: #62cda9;
+
+  background: rgba(40, 93, 78, 0.12);
+}
+
+
+/* =========================================================
+   VIDEO PLACEHOLDER
+   ========================================================= */
+
+.dashboard-camera .feed-placeholder {
+  width: 100%;
+
+  height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 8px;
+
+  color: #6e818a;
+}
+
+
+.dashboard-camera .feed-placeholder span {
+  color: #a7b5ba;
+
+  font-size: 13px;
+
+  letter-spacing: 1px;
+}
+
+
+.dashboard-camera .feed-placeholder small {
+  color: #53656d;
+
+  font-size: 11px;
+}
