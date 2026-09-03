@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import "./CameraManagement.css";
 
-const API_BASE = "http://127.0.0.1:8000";
-
+const API_BASE = "https://aveksha-netra-backend.onrender.com";
 function CameraManagement() {
   const [cameras, setCameras] = useState([]);
   const [loadingCameras, setLoadingCameras] = useState(true);

@@ -29,7 +29,7 @@ function Login({ onLogin, onBack, onRegister }) {
         try {
 
             const response = await fetch(
-                "http://127.0.0.1:8000/api/auth/login",
+                "https://aveksha-netra-backend.onrender.com/api/auth/login",
                 {
                     method: "POST",
 

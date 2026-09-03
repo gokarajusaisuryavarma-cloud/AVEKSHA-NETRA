@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://aveksha-netra-backend.onrender.com";
 
 const ALERT_LIFETIME_MS = 3 * 60 * 60 * 1000;
 const EVENT_POLL_INTERVAL = 3000;
