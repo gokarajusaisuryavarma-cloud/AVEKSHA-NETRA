@@ -1,3 +1,6 @@
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
 import { useState } from "react";
 import "./Login.css";
 
@@ -29,7 +32,7 @@ function Login({ onLogin, onBack, onRegister }) {
         try {
 
             const response = await fetch(
-                "https://aveksha-netra-backend.onrender.com/api/auth/login",
+                "`${API_BASE}/api/auth/login`",
                 {
                     method: "POST",
 

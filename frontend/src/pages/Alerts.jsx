@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import "./Alerts.css";
 
-const API_BASE = "https://aveksha-netra-backend.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
 function Alerts() {
   // ============================================================
   // STATE
