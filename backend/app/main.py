@@ -38,16 +38,6 @@ from ai.ai_services import (
     stop_all_ai,
 )
 
-from ai.alert_manager import (
-    get_alerts,
-    get_active_alerts,
-    get_alert_count,
-    get_active_alert_count,
-    get_human_alert_count,
-    get_vehicle_alert_count,
-    get_alert_summary,
-)
-
 
 # ============================================================
 # FASTAPI APPLICATION
@@ -66,36 +56,28 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
-        # Local development
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5175",
 
-        # Production
-        "https://avekshanetra.in",
-        "https://www.avekshanetra.in",
-
-        # Render frontend
-        "https://YOUR-ACTUAL-FRONTEND-URL.onrender.com",
+        # Production frontend
+        "https://aveksha-netra.vercel.app",
     ],
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 # ============================================================
 # JWT CONFIGURATION
 # ============================================================
 
-SECRET_KEY = "AVEKSHA_NETRA_CHANGE_THIS_SECRET_KEY"
-
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "development-secret-change-me",
+)
 ALGORITHM = "HS256"
-
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
@@ -111,6 +93,7 @@ Base.metadata.create_all(bind=engine)
 # ============================================================
 
 def get_db():
+
     db = SessionLocal()
 
     try:
@@ -144,10 +127,7 @@ def database_test():
     try:
 
         with engine.connect() as connection:
-
-            connection.execute(
-                text("SELECT 1")
-            )
+            connection.execute(text("SELECT 1"))
 
         return {
             "status": "ok",
@@ -278,6 +258,7 @@ def create_camera(
     print(f"   ID: {new_camera.id}")
     print(f"   Name: {new_camera.name}")
     print(f"   Location: {new_camera.location}")
+    print(f"   Source Type: {new_camera.source_type}")
 
     return new_camera
 
@@ -336,7 +317,9 @@ def update_camera(
             detail="Camera URL cannot be empty",
         )
 
-    # Stop running AI before changing camera source
+    # --------------------------------------------------------
+    # STOP EXISTING AI
+    # --------------------------------------------------------
 
     try:
 
@@ -348,9 +331,16 @@ def update_camera(
             f"⚠️ AI stop error during update: {error}"
         )
 
+    # --------------------------------------------------------
+    # UPDATE CAMERA
+    # --------------------------------------------------------
+
     existing_camera.name = camera_name
     existing_camera.location = camera_location
     existing_camera.rtsp_url = rtsp_url
+
+    # Existing camera remains RTSP
+    existing_camera.source_type = "RTSP"
 
     db.commit()
 
@@ -360,6 +350,7 @@ def update_camera(
     print("✏️ CAMERA UPDATED")
     print(f"   ID: {existing_camera.id}")
     print(f"   Name: {existing_camera.name}")
+    print(f"   Source Type: {existing_camera.source_type}")
 
     return existing_camera
 
@@ -423,8 +414,12 @@ def delete_camera(
 # TEST CAMERA CONNECTION
 # ============================================================
 
-@app.post("/api/cameras/test-connection")
-def test_camera_connection(camera: CameraCreate):
+@app.post(
+    "/api/cameras/test-connection"
+)
+def test_camera_connection(
+    camera: CameraCreate,
+):
 
     camera_name = camera.name.strip()
     camera_location = camera.location.strip()
@@ -447,49 +442,63 @@ def test_camera_connection(camera: CameraCreate):
 
     try:
 
-        # Open RTSP/video source
         capture = cv2.VideoCapture(
             rtsp_url,
-            cv2.CAP_FFMPEG
+            cv2.CAP_FFMPEG,
         )
 
-        # Give OpenCV a chance to open the stream
         if not capture.isOpened():
 
-            print("❌ Camera connection failed")
+            print(
+                "❌ Camera connection failed"
+            )
 
             return {
                 "status": "FAILED",
                 "connected": False,
-                "message": "Unable to connect to camera source",
+                "message": (
+                    "Unable to connect "
+                    "to camera source"
+                ),
             }
 
-        # Try to read one frame
         success, frame = capture.read()
 
         if success and frame is not None:
 
             height, width = frame.shape[:2]
 
-            print("✅ Camera connection successful")
-            print(f"   Resolution: {width}x{height}")
+            print(
+                "✅ Camera connection successful"
+            )
+
+            print(
+                f"   Resolution: "
+                f"{width}x{height}"
+            )
 
             return {
                 "status": "CONNECTED",
                 "connected": True,
-                "message": "Camera connection successful",
+                "message": (
+                    "Camera connection successful"
+                ),
                 "width": width,
                 "height": height,
             }
 
         print(
-            "⚠️ Camera opened but frame could not be read"
+            "⚠️ Camera opened but frame "
+            "could not be read"
         )
 
         return {
             "status": "FAILED",
             "connected": False,
-            "message": "Camera opened but no video frame received",
+            "message": (
+                "Camera opened but no "
+                "video frame received"
+            ),
         }
 
     except Exception as error:
@@ -508,9 +517,10 @@ def test_camera_connection(camera: CameraCreate):
 
         if capture is not None:
 
-            capture.release()
-
-            print("🔌 Camera test connection released")
+            try:
+                capture.release()
+            except Exception:
+                pass
 
 
 # ============================================================
@@ -571,7 +581,8 @@ def camera_stream(
             )
 
         print(
-            f"🎥 FILE STREAM CAM-{camera.id:03d}"
+            f"🎥 FILE STREAM "
+            f"CAM-{camera.id:03d}"
         )
 
         return StreamingResponse(
@@ -594,11 +605,14 @@ def camera_stream(
 
             raise HTTPException(
                 status_code=400,
-                detail="RTSP URL is not configured",
+                detail=(
+                    "RTSP URL is not configured"
+                ),
             )
 
         print(
-            f"📡 RTSP STREAM CAM-{camera.id:03d}"
+            f"📡 RTSP STREAM "
+            f"CAM-{camera.id:03d}"
         )
 
         return StreamingResponse(
@@ -614,7 +628,7 @@ def camera_stream(
     raise HTTPException(
         status_code=400,
         detail=(
-            f"Unsupported camera source type: "
+            "Unsupported camera source type: "
             f"{camera.source_type}"
         ),
     )
@@ -649,15 +663,18 @@ def register_user(
             detail="Password cannot be empty",
         )
 
-    password_bytes = (
-        user.password.encode("utf-8")
+    password_bytes = user.password.encode(
+        "utf-8"
     )
 
     if len(password_bytes) > 72:
 
         raise HTTPException(
             status_code=400,
-            detail="Password must be 72 bytes or less",
+            detail=(
+                "Password must be "
+                "72 bytes or less"
+            ),
         )
 
     existing_user = (
@@ -722,7 +739,9 @@ def login_user(
 
         raise HTTPException(
             status_code=401,
-            detail="Invalid username or password",
+            detail=(
+                "Invalid username or password"
+            ),
         )
 
     if not existing_user.is_active:
@@ -732,8 +751,8 @@ def login_user(
             detail="User account is inactive",
         )
 
-    password_bytes = (
-        user.password.encode("utf-8")
+    password_bytes = user.password.encode(
+        "utf-8"
     )
 
     if len(password_bytes) > 72:
@@ -760,7 +779,9 @@ def login_user(
 
         raise HTTPException(
             status_code=401,
-            detail="Invalid username or password",
+            detail=(
+                "Invalid username or password"
+            ),
         )
 
     expire = (
@@ -831,7 +852,7 @@ def start_camera_ai_endpoint(
         )
 
     # --------------------------------------------------------
-    # FILE SOURCE
+    # DETERMINE SOURCE
     # --------------------------------------------------------
 
     if camera.source_type == "FILE":
@@ -853,13 +874,19 @@ def start_camera_ai_endpoint(
                 detail="Test video not found",
             )
 
-    # --------------------------------------------------------
-    # RTSP SOURCE
-    # --------------------------------------------------------
+    elif camera.source_type == "RTSP":
+
+        source = camera.rtsp_url
 
     else:
 
-        source = camera.rtsp_url
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported camera source type: "
+                f"{camera.source_type}"
+            ),
+        )
 
     if not source:
 
@@ -872,13 +899,19 @@ def start_camera_ai_endpoint(
     print("🤖 AI START REQUEST")
     print(f"   Camera: {camera.name}")
     print(f"   ID: {camera.id}")
+    print(f"   Type: {camera.source_type}")
     print(f"   Source: {source}")
+
+    # --------------------------------------------------------
+    # START AI WORKER
+    # --------------------------------------------------------
 
     try:
 
         worker = start_camera_ai(
             camera_id=camera.id,
             source=source,
+            source_type=camera.source_type,
             camera_name=camera.name,
             location=camera.location,
         )
@@ -891,7 +924,9 @@ def start_camera_ai_endpoint(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to start AI: {error}",
+            detail=(
+                f"Failed to start AI: {error}"
+            ),
         )
 
     return {
@@ -899,6 +934,7 @@ def start_camera_ai_endpoint(
         "message": "AI processing started",
         "camera_id": camera.id,
         "camera_name": camera.name,
+        "source_type": camera.source_type,
         "ai_status": worker.get_status(),
     }
 
@@ -1003,7 +1039,9 @@ def camera_events(
 
     return {
         "camera_id": camera_id,
-        "events": get_camera_events(camera_id),
+        "events": get_camera_events(
+            camera_id
+        ),
     }
 
 
@@ -1029,7 +1067,9 @@ def camera_tracks(
 
     return {
         "camera_id": camera_id,
-        "tracks": get_camera_tracks(camera_id),
+        "tracks": get_camera_tracks(
+            camera_id
+        ),
     }
 
 
@@ -1066,7 +1106,7 @@ def camera_ai_stream(
     print(f"   Camera ID: {camera_id}")
 
     # --------------------------------------------------------
-    # GET WORKER
+    # GET AI WORKER
     # --------------------------------------------------------
 
     worker = get_camera_ai(camera_id)
@@ -1074,7 +1114,8 @@ def camera_ai_stream(
     if worker is None:
 
         print(
-            f"❌ No AI worker for camera {camera_id}"
+            f"❌ No AI worker for camera "
+            f"{camera_id}"
         )
 
         raise HTTPException(
@@ -1092,7 +1133,7 @@ def camera_ai_stream(
 
     if not hasattr(
         worker,
-        "generate_ai_stream"
+        "generate_ai_stream",
     ):
 
         print(
@@ -1132,140 +1173,8 @@ def camera_ai_stream(
 
         raise HTTPException(
             status_code=500,
-            detail=f"AI stream error: {error}",
-        )
-
-
-# ============================================================
-# ALERT MANAGEMENT
-# ============================================================
-
-
-# ============================================================
-# GET ALL ALERTS
-# ============================================================
-
-@app.get(
-    "/api/alerts"
-)
-def get_all_alerts():
-
-    try:
-
-        alerts = get_alerts()
-
-        return {
-            "status": "ok",
-            "alerts": alerts,
-            "count": len(alerts),
-        }
-
-    except Exception as error:
-
-        print(
-            f"❌ Failed to get alerts: {error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get alerts: {error}",
-        )
-
-
-# ============================================================
-# GET ACTIVE ALERTS
-# ============================================================
-
-@app.get(
-    "/api/alerts/active"
-)
-def get_active_alerts_endpoint():
-
-    try:
-
-        alerts = get_active_alerts()
-
-        return {
-            "status": "ok",
-            "alerts": alerts,
-            "count": len(alerts),
-        }
-
-    except Exception as error:
-
-        print(
-            f"❌ Failed to get active alerts: {error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
             detail=(
-                f"Failed to get active alerts: {error}"
-            ),
-        )
-
-
-# ============================================================
-# ALERT SUMMARY
-# ============================================================
-
-@app.get(
-    "/api/alerts/summary"
-)
-def get_alert_summary_endpoint():
-
-    try:
-
-        summary = get_alert_summary()
-
-        return {
-            "status": "ok",
-            "summary": summary,
-        }
-
-    except Exception as error:
-
-        print(
-            f"❌ Failed to get alert summary: {error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Failed to get alert summary: {error}"
-            ),
-        )
-
-
-# ============================================================
-# ALERT COUNTS
-# ============================================================
-
-@app.get(
-    "/api/alerts/count"
-)
-def get_alert_counts():
-
-    try:
-
-        return {
-            "status": "ok",
-            "total": get_alert_count(),
-            "active": get_active_alert_count(),
-            "human": get_human_alert_count(),
-            "vehicle": get_vehicle_alert_count(),
-        }
-
-    except Exception as error:
-
-        print(
-            f"❌ Failed to get alert counts: {error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Failed to get alert counts: {error}"
+                f"AI stream error: {error}"
             ),
         )
 
@@ -1278,7 +1187,10 @@ def get_alert_counts():
 def shutdown_event():
 
     print()
-    print("🛑 Shutting down AVEKSHA NETRA AI...")
+    print(
+        "🛑 Shutting down "
+        "AVEKSHA NETRA AI..."
+    )
 
     try:
 
@@ -1290,5 +1202,10 @@ def shutdown_event():
             f"⚠️ AI shutdown error: {error}"
         )
 
-    print("🛑 All AI workers stopped")
-    print("✅ AVEKSHA NETRA shutdown complete")
+    print(
+        "🛑 All AI workers stopped"
+    )
+
+    print(
+        "✅ AVEKSHA NETRA shutdown complete"
+    )

@@ -10,6 +10,18 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CameraManagement from "./pages/CameraManagement";
 
+// ==================================================
+// API CONFIGURATION
+// ==================================================
+
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
+
+
+// ==================================================
+// APP
+// ==================================================
 
 function App() {
 
@@ -95,7 +107,7 @@ function App() {
     try {
 
       const response = await fetch(
-        "https://aveksha-netra-backend.onrender.com/api/cameras"
+        `${API_BASE}/api/cameras`
       );
 
       if (!response.ok) {
@@ -331,6 +343,7 @@ function App() {
 
             <Dashboard
               cameras={cameras}
+              refreshCameras={fetchCameras}
             />
 
           )}

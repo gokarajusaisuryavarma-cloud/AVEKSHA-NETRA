@@ -10,6 +10,7 @@ class CameraCreate(BaseModel):
     name: str
     location: str
     rtsp_url: str
+    source_type: str = "RTSP"
 
 
 # ==================================================
