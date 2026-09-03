@@ -67,6 +67,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Local development
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
@@ -74,8 +75,12 @@ app.add_middleware(
         "http://localhost:5175",
         "http://127.0.0.1:5175",
 
+        # Production
         "https://avekshanetra.in",
         "https://www.avekshanetra.in",
+
+        # Render frontend
+        "https://YOUR-ACTUAL-FRONTEND-URL.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
