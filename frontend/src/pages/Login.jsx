@@ -31,9 +31,7 @@ function Login({ onLogin, onBack, onRegister }) {
 
         try {
 
-            const response = await fetch(
-                "`${API_BASE}/api/auth/login`",
-                {
+            const response = await fetch(`${API_BASE}/api/auth/login`, {
                     method: "POST",
 
                     headers: {
