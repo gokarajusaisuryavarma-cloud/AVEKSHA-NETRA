@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSystem, SYSTEM_STATUS } from "../context/SystemContext";
-import { aiApi } from "../api";
+import { aiApi, alertsApi } from "../api";
 import StatCard from "../components/common/StatCard";
 import CameraCard from "../components/surveillance/CameraCard";
 import AlertCard from "../components/surveillance/AlertCard";
@@ -27,6 +27,8 @@ export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCa
   // Local state for camera events and telemetry
   const [cameraEvents, setCameraEvents] = useState({}); // { [cameraId]: [events] }
   const [cameraStatusMap, setCameraStatusMap] = useState({}); // { [cameraId]: aiStatus }
+  const [backendAlerts, setBackendAlerts] = useState([]);
+  const [threatCategoryFilter, setThreatCategoryFilter] = useState("ALL");
   const [selectedCameraForModal, setSelectedCameraForModal] = useState(null);
   const [selectedAlertForModal, setSelectedAlertForModal] = useState(null);
 
@@ -34,6 +36,14 @@ export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCa
   // POLL TELEMETRY & EVENTS FOR ALL CAMERAS
   // ============================================================
   const pollSurveillanceData = useCallback(async () => {
+    // 0. Fetch Centralized Live Alerts
+    try {
+      const alertsRes = await alertsApi.getAlerts();
+      if (Array.isArray(alertsRes?.alerts)) {
+        setBackendAlerts(alertsRes.alerts);
+      }
+    } catch {}
+
     if (!cameras || cameras.length === 0) return;
 
     for (const cam of cameras) {
@@ -76,7 +86,7 @@ export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCa
   // ============================================================
   // DERIVE METRICS & AGGREGATE STATS
   // ============================================================
-  const { activeFeedsCount, totalDetections, personsCount, vehiclesCount, aggregatedAlerts } =
+  const { activeFeedsCount, totalDetections, personsCount, vehiclesCount, categoryCounts, aggregatedAlerts } =
     useMemo(() => {
       let activeFeeds = 0;
       let detections = 0;
@@ -114,25 +124,78 @@ export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCa
             camera_name: cam.name,
             location: cam.location,
             object_type: objType || "Object",
-            title: `${(objType || "OBJECT").toUpperCase()} DETECTED`,
-            severity,
+            alert_type: ev.type,
+            title: ev.title || `${(objType || "OBJECT").toUpperCase()} DETECTED`,
+            message: ev.message,
+            severity: ev.severity || severity,
             confidence: ev.confidence,
             timestamp: ev.timestamp || ev.first_seen || new Date().toISOString(),
           });
         });
       });
 
+      // Incorporate structured alerts from backend engines
+      backendAlerts.forEach((ba) => {
+        alertsList.push({
+          id: ba.id,
+          camera_id: ba.camera_id,
+          camera_name: ba.camera_name || `CAM-${String(ba.camera_id).padStart(3, "0")}`,
+          location: ba.location || "Monitored Zone",
+          object_type: ba.object_type || "Object",
+          alert_type: ba.alert_type,
+          title: ba.title || "AI THREAT ALERT",
+          message: ba.message,
+          severity: ba.severity || "HIGH",
+          confidence: ba.confidence,
+          timestamp: ba.timestamp || ba.created_at || new Date().toISOString(),
+        });
+      });
+
       // Sort alerts descending by timestamp
       alertsList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Calculate category counts
+      const counts = {
+        ALL: alertsList.length,
+        INTRUSIONS: alertsList.filter((a) => String(a.alert_type || a.title || "").toUpperCase().includes("INTRUSION")).length,
+        ANPR: alertsList.filter((a) => {
+          const t = String(a.alert_type || a.title || "").toUpperCase();
+          return t.includes("ANPR") || t.includes("PLATE") || t.includes("WATCHLIST");
+        }).length,
+        FACE: alertsList.filter((a) => {
+          const t = String(a.alert_type || a.title || "").toUpperCase();
+          return t.includes("FACE") || t.includes("PERSONNEL");
+        }).length,
+        BEHAVIOR: alertsList.filter((a) => {
+          const t = String(a.alert_type || a.title || "").toUpperCase();
+          return t.includes("LOITERING") || t.includes("STATIONARY") || t.includes("CROWD");
+        }).length,
+        NIGHT: alertsList.filter((a) => String(a.alert_type || a.title || "").toUpperCase().includes("NIGHT")).length,
+      };
+
+      // Apply active filter
+      let filtered = alertsList;
+      if (threatCategoryFilter !== "ALL") {
+        filtered = alertsList.filter((a) => {
+          const t = String(a.alert_type || a.title || "").toUpperCase();
+          if (threatCategoryFilter === "INTRUSIONS") return t.includes("INTRUSION");
+          if (threatCategoryFilter === "ANPR") return t.includes("ANPR") || t.includes("PLATE") || t.includes("WATCHLIST");
+          if (threatCategoryFilter === "FACE") return t.includes("FACE") || t.includes("PERSONNEL");
+          if (threatCategoryFilter === "BEHAVIOR") return t.includes("LOITERING") || t.includes("STATIONARY") || t.includes("CROWD");
+          if (threatCategoryFilter === "NIGHT") return t.includes("NIGHT");
+          return true;
+        });
+      }
 
       return {
         activeFeedsCount: activeFeeds,
         totalDetections: detections,
         personsCount: persons,
         vehiclesCount: vehicles,
-        aggregatedAlerts: alertsList.slice(0, 20), // Top 20 recent
+        categoryCounts: counts,
+        aggregatedAlerts: filtered.slice(0, 30),
       };
-    }, [cameras, cameraStatusMap, activeWorkers, cameraEvents]);
+    }, [cameras, cameraStatusMap, activeWorkers, cameraEvents, backendAlerts, threatCategoryFilter]);
 
   return (
     <div className="command-center-container">
@@ -317,6 +380,61 @@ export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCa
                 </span>
               )}
             </div>
+          </div>
+
+          {/* SIH Threat Category Filter Chips */}
+          <div
+            className="threat-category-bar"
+            style={{
+              display: "flex",
+              gap: "4px",
+              padding: "6px 12px",
+              borderBottom: "1px solid var(--border-subtle, #1e293b)",
+              overflowX: "auto",
+              background: "rgba(10, 15, 22, 0.6)",
+            }}
+          >
+            {[
+              { id: "ALL", label: "ALL", count: categoryCounts?.ALL || 0 },
+              { id: "INTRUSIONS", label: "INTRUSIONS", count: categoryCounts?.INTRUSIONS || 0 },
+              { id: "ANPR", label: "ANPR / PLATES", count: categoryCounts?.ANPR || 0 },
+              { id: "FACE", label: "FACE ID", count: categoryCounts?.FACE || 0 },
+              { id: "BEHAVIOR", label: "BEHAVIOR", count: categoryCounts?.BEHAVIOR || 0 },
+              { id: "NIGHT", label: "NIGHT", count: categoryCounts?.NIGHT || 0 },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setThreatCategoryFilter(cat.id)}
+                style={{
+                  fontSize: "10px",
+                  padding: "4px 8px",
+                  borderRadius: "4px",
+                  border:
+                    threatCategoryFilter === cat.id
+                      ? "1px solid var(--primary, #06b6d4)"
+                      : "1px solid rgba(255,255,255,0.08)",
+                  background:
+                    threatCategoryFilter === cat.id
+                      ? "rgba(6, 182, 212, 0.15)"
+                      : "transparent",
+                  color:
+                    threatCategoryFilter === cat.id
+                      ? "var(--primary, #06b6d4)"
+                      : "var(--text-muted, #94a3b8)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontWeight: 600,
+                }}
+              >
+                <span>{cat.label}</span>
+                <span style={{ fontSize: "9px", opacity: 0.8 }} className="tech-value">
+                  ({cat.count})
+                </span>
+              </button>
+            ))}
           </div>
 
           <div className="threat-feed-list">

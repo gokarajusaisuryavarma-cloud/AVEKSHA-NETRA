@@ -30,6 +30,29 @@ export function AlertCard({ alert, onSelect }) {
   }
 
   const confidence = alert.confidence ? `${Math.round(alert.confidence * 100)}%` : null;
+  const alertType = String(alert.alert_type || "").toUpperCase();
+
+  // Determine SIH category pill
+  let categoryTag = null;
+  if (alertType.includes("INTRUSION")) {
+    categoryTag = { label: "PERIMETER BREACH", tone: "critical" };
+  } else if (alertType === "ANPR_WATCHLIST") {
+    categoryTag = { label: "WATCHLIST MATCH", tone: "critical" };
+  } else if (alertType.includes("ANPR")) {
+    categoryTag = { label: "ANPR PLATE", tone: "info" };
+  } else if (alertType === "FACE_RECOGNIZED") {
+    categoryTag = { label: "KNOWN PERSONNEL", tone: "success" };
+  } else if (alertType === "FACE_UNKNOWN") {
+    categoryTag = { label: "UNKNOWN VISITOR", tone: "warning" };
+  } else if (alertType.includes("LOITERING")) {
+    categoryTag = { label: "LOITERING DWELL", tone: "warning" };
+  } else if (alertType.includes("STATIONARY")) {
+    categoryTag = { label: "STATIONARY OBJECT", tone: "warning" };
+  } else if (alertType.includes("CROWD")) {
+    categoryTag = { label: "CROWD CLUSTER", tone: "warning" };
+  } else if (alertType.includes("NIGHT")) {
+    categoryTag = { label: "NIGHT PATROL", tone: "info" };
+  }
 
   return (
     <div
@@ -37,16 +60,40 @@ export function AlertCard({ alert, onSelect }) {
       onClick={() => onSelect && onSelect(alert)}
     >
       <div className="alert-card-header">
-        <StatusBadge
-          status={severity === "CRITICAL" || severity === "HIGH" ? "threat" : "warning"}
-          label={severity}
-          size="sm"
-          showDot={true}
-        />
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          <StatusBadge
+            status={severity === "CRITICAL" || severity === "HIGH" ? "threat" : "warning"}
+            label={severity}
+            size="sm"
+            showDot={true}
+          />
+          {categoryTag && (
+            <span
+              style={{
+                fontSize: "9px",
+                fontWeight: 600,
+                letterSpacing: "0.5px",
+                padding: "2px 6px",
+                borderRadius: "3px",
+                textTransform: "uppercase",
+                background: categoryTag.tone === "critical" ? "rgba(239, 68, 68, 0.2)" : categoryTag.tone === "success" ? "rgba(16, 185, 129, 0.2)" : "rgba(6, 182, 212, 0.2)",
+                color: categoryTag.tone === "critical" ? "#f87171" : categoryTag.tone === "success" ? "#34d399" : "#38bdf8",
+                border: `1px solid ${categoryTag.tone === "critical" ? "rgba(239, 68, 68, 0.4)" : categoryTag.tone === "success" ? "rgba(16, 185, 129, 0.4)" : "rgba(6, 182, 212, 0.4)"}`,
+              }}
+            >
+              {categoryTag.label}
+            </span>
+          )}
+        </div>
         <span className="alert-time tech-value">{timeDisplay}</span>
       </div>
 
       <div className="alert-card-title">{title}</div>
+      {alert.message && alert.message !== title && (
+        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", lineHeight: "1.4" }}>
+          {alert.message}
+        </div>
+      )}
 
       <div className="alert-card-meta">
         <div className="alert-source">

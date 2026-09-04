@@ -15,12 +15,25 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, SessionLocal
 from app import models
 
+import base64
+import numpy as np
+
 from app.schemas import (
     CameraCreate,
     CameraResponse,
     UserCreate,
     UserResponse,
     UserLogin,
+    KnownFaceCreate,
+    KnownFaceResponse,
+    PlateWatchlistCreate,
+    PlateWatchlistResponse,
+    CameraZoneCreate,
+    CameraZoneResponse,
+    SuspiciousRuleCreate,
+    SuspiciousRuleResponse,
+    NightScheduleCreate,
+    NightScheduleResponse,
 )
 
 from app.video import generate_video_stream
@@ -36,6 +49,18 @@ from ai.ai_services import (
     get_active_event_count,
     get_total_event_count,
     stop_all_ai,
+)
+
+from ai.face_engine import face_engine
+from ai.fence_engine import fence_engine
+from ai.anpr_manager import anpr_manager
+from ai.behavior_engine import behavior_engine
+from ai.night_engine import night_engine
+from ai.alert_manager import (
+    get_alerts,
+    get_active_alerts,
+    acknowledge_alert,
+    clear_alerts,
 )
 
 
@@ -1180,6 +1205,251 @@ def camera_ai_stream(
                 f"AI stream error: {error}"
             ),
         )
+
+
+# ============================================================
+# FACE RECOGNITION REGISTRY
+# ============================================================
+
+@app.get("/api/faces", response_model=list[KnownFaceResponse])
+def get_registered_faces(db: Session = Depends(get_db)):
+    faces = db.query(models.KnownFace).order_by(models.KnownFace.created_at.desc()).all()
+    return faces
+
+
+@app.post("/api/faces")
+def register_face(data: KnownFaceCreate, db: Session = Depends(get_db)):
+    if data.image_base64:
+        try:
+            raw_b64 = data.image_base64
+            if "," in raw_b64:
+                raw_b64 = raw_b64.split(",", 1)[1]
+            img_bytes = base64.b64decode(raw_b64)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                raise HTTPException(status_code=400, detail="Invalid image data")
+
+            success, msg, face_id = face_engine.register_face(
+                name=data.name,
+                role=data.role,
+                department=data.department,
+                image_bgr=img,
+                notes=data.notes,
+            )
+            if not success:
+                raise HTTPException(status_code=400, detail=msg)
+
+            return {"status": "success", "message": msg, "face_id": face_id}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Face registration failed: {e}")
+
+    if data.embedding:
+        kf = models.KnownFace(
+            name=data.name.strip(),
+            role=data.role.strip() if data.role else "Staff",
+            department=data.department.strip() if data.department else "General",
+            embedding=data.embedding,
+            notes=data.notes,
+        )
+        db.add(kf)
+        db.commit()
+        db.refresh(kf)
+        face_engine.reload_cache()
+        return {"status": "success", "message": "Face registered successfully", "face_id": kf.id}
+
+    raise HTTPException(status_code=400, detail="Either image_base64 or embedding is required")
+
+
+@app.delete("/api/faces/{face_id}")
+def delete_registered_face(face_id: int, db: Session = Depends(get_db)):
+    kf = db.query(models.KnownFace).filter(models.KnownFace.id == face_id).first()
+    if not kf:
+        raise HTTPException(status_code=404, detail="Registered face not found")
+    db.delete(kf)
+    db.commit()
+    face_engine.reload_cache()
+    return {"status": "success", "message": "Face removed"}
+
+
+# ============================================================
+# ANPR WATCHLIST
+# ============================================================
+
+@app.get("/api/watchlist", response_model=list[PlateWatchlistResponse])
+def get_watchlist(db: Session = Depends(get_db)):
+    items = db.query(models.PlateWatchlist).order_by(models.PlateWatchlist.created_at.desc()).all()
+    return items
+
+
+@app.post("/api/watchlist")
+def add_to_watchlist(entry: PlateWatchlistCreate, db: Session = Depends(get_db)):
+    import re
+    clean_plate = re.sub(r"[^A-Z0-9]", "", entry.plate_number.upper().strip())
+    if not clean_plate:
+        raise HTTPException(status_code=400, detail="Valid plate number is required")
+
+    existing = db.query(models.PlateWatchlist).filter(models.PlateWatchlist.plate_number == clean_plate).first()
+    if existing:
+        existing.category = entry.category.upper()
+        existing.vehicle_description = entry.vehicle_description
+        existing.owner_name = entry.owner_name
+        existing.notes = entry.notes
+        db.commit()
+        db.refresh(existing)
+        anpr_manager.reload_watchlist()
+        return {"status": "success", "message": "Watchlist entry updated", "id": existing.id}
+
+    item = models.PlateWatchlist(
+        plate_number=clean_plate,
+        category=entry.category.upper(),
+        vehicle_description=entry.vehicle_description,
+        owner_name=entry.owner_name,
+        notes=entry.notes,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    anpr_manager.reload_watchlist()
+    return {"status": "success", "message": "Plate added to watchlist", "id": item.id}
+
+
+@app.delete("/api/watchlist/{entry_id}")
+def delete_from_watchlist(entry_id: int, db: Session = Depends(get_db)):
+    item = db.query(models.PlateWatchlist).filter(models.PlateWatchlist.id == entry_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Watchlist entry not found")
+    db.delete(item)
+    db.commit()
+    anpr_manager.reload_watchlist()
+    return {"status": "success", "message": "Entry removed from watchlist"}
+
+
+# ============================================================
+# VIRTUAL-FENCE CAMERA ZONES
+# ============================================================
+
+@app.get("/api/cameras/{camera_id}/zones", response_model=list[CameraZoneResponse])
+def get_camera_zones(camera_id: int, db: Session = Depends(get_db)):
+    zones = db.query(models.CameraZone).filter(models.CameraZone.camera_id == camera_id).all()
+    return zones
+
+
+@app.post("/api/cameras/{camera_id}/zones")
+def create_camera_zone(camera_id: int, zone: CameraZoneCreate, db: Session = Depends(get_db)):
+    camera = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    new_zone = models.CameraZone(
+        camera_id=camera_id,
+        name=zone.name.strip(),
+        zone_type=zone.zone_type.upper(),
+        polygon_points=zone.polygon_points,
+        alert_severity=zone.alert_severity.upper(),
+        is_active=zone.is_active,
+    )
+    db.add(new_zone)
+    db.commit()
+    db.refresh(new_zone)
+    fence_engine.reload_zones()
+    return {"status": "success", "message": "Zone created successfully", "id": new_zone.id}
+
+
+@app.delete("/api/cameras/{camera_id}/zones/{zone_id}")
+def delete_camera_zone(camera_id: int, zone_id: int, db: Session = Depends(get_db)):
+    z = db.query(models.CameraZone).filter(models.CameraZone.id == zone_id, models.CameraZone.camera_id == camera_id).first()
+    if not z:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    db.delete(z)
+    db.commit()
+    fence_engine.reload_zones()
+    return {"status": "success", "message": "Zone removed"}
+
+
+# ============================================================
+# LIVE THREAT ALERTS
+# ============================================================
+
+@app.get("/api/alerts")
+def get_live_alerts(category: str = None, status: str = None, camera_id: int = None, limit: int = 100):
+    all_alerts = get_alerts()
+    filtered = all_alerts
+
+    if camera_id is not None:
+        filtered = [a for a in filtered if a.get("camera_id") == camera_id]
+
+    if status:
+        filtered = [a for a in filtered if str(a.get("status", "")).upper() == status.upper()]
+
+    if category:
+        cat_upper = category.upper()
+        if cat_upper == "INTRUSIONS":
+            filtered = [a for a in filtered if "INTRUSION" in str(a.get("alert_type", ""))]
+        elif cat_upper in {"ANPR", "PLATES"}:
+            filtered = [a for a in filtered if "ANPR" in str(a.get("alert_type", ""))]
+        elif cat_upper in {"FACE", "FACE_ID"}:
+            filtered = [a for a in filtered if "FACE" in str(a.get("alert_type", ""))]
+        elif cat_upper in {"SUSPICIOUS", "BEHAVIOR"}:
+            filtered = [a for a in filtered if str(a.get("alert_type")) in {"LOITERING_DETECTED", "STATIONARY_OBJECT", "CROWD_GATHERING"}]
+        elif cat_upper in {"NIGHT", "NIGHT_PATROL"}:
+            filtered = [a for a in filtered if "NIGHT" in str(a.get("alert_type", ""))]
+
+    return {
+        "status": "ok",
+        "total": len(filtered),
+        "alerts": filtered[:limit],
+    }
+
+
+@app.post("/api/alerts/{alert_id}/acknowledge")
+def acknowledge_alert_endpoint(alert_id: int):
+    alert = acknowledge_alert(alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"status": "success", "message": f"Alert #{alert_id} acknowledged", "alert": alert}
+
+
+@app.delete("/api/alerts")
+def clear_all_alerts_endpoint():
+    clear_alerts()
+    return {"status": "success", "message": "All live alerts cleared"}
+
+
+# ============================================================
+# SECURITY RULES & NIGHT CURFEW SETTINGS
+# ============================================================
+
+@app.get("/api/settings/security-rules")
+def get_security_settings(db: Session = Depends(get_db)):
+    rules = db.query(models.SuspiciousRule).all()
+    schedules = db.query(models.NightSchedule).all()
+    return {
+        "status": "ok",
+        "rules": [
+            {
+                "id": r.id,
+                "camera_id": r.camera_id,
+                "rule_type": r.rule_type,
+                "threshold_seconds": r.threshold_seconds,
+                "is_active": r.is_active,
+            }
+            for r in rules
+        ],
+        "night_schedules": [
+            {
+                "id": s.id,
+                "camera_id": s.camera_id,
+                "start_time": s.start_time,
+                "end_time": s.end_time,
+                "luminance_threshold": s.luminance_threshold,
+                "is_active": s.is_active,
+            }
+            for s in schedules
+        ],
+    }
 
 
 # ============================================================

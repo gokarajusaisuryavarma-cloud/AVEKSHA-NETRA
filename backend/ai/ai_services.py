@@ -8,6 +8,11 @@ from .detector import analyze_frame
 from .tracker import ObjectTracker
 from .event_manager import EventManager
 from .alert_manager import process_ai_event
+from .face_engine import face_engine
+from .fence_engine import fence_engine
+from .behavior_engine import behavior_engine
+from .night_engine import night_engine
+from .anpr_manager import anpr_manager
 
 
 # ============================================================
@@ -104,6 +109,10 @@ class CameraAIWorker:
 
         self.latest_detections = []
         self.latest_tracks = []
+        self.active_intrusions = []
+        self.recognized_faces = {}
+        self.night_mode = False
+        self.luminance = 100.0
 
         self.tracker = ObjectTracker(
             max_distance=MAX_TRACK_DISTANCE,
@@ -557,6 +566,130 @@ class CameraAIWorker:
                     self.latest_tracks = []
 
                 # ============================================
+                # 1. NIGHT MODE CHECK
+                # ============================================
+
+                try:
+                    is_night, luminance, _ = night_engine.is_night_mode(
+                        frame, self.camera_id
+                    )
+                    self.night_mode = is_night
+                    self.luminance = luminance
+                except Exception:
+                    pass
+
+                # ============================================
+                # 2. ANPR (NUMBER PLATE RECOGNITION & WATCHLIST)
+                # ============================================
+
+                try:
+                    anpr_events = anpr_manager.process(
+                        frame, tracks, self.camera_id
+                    )
+                    for a_evt in anpr_events:
+                        self._store_event({
+                            "type": a_evt["type"],
+                            "event": a_evt,
+                        })
+                except Exception as anpr_err:
+                    print(f"⚠️ ANPR worker error: {anpr_err}")
+
+                # ============================================
+                # 3. FACE DETECTION & RECOGNITION
+                # ============================================
+
+                try:
+                    for track in tracks:
+                        if track.get("object_type") == "person":
+                            tid = track["track_id"]
+                            if (
+                                tid not in self.recognized_faces
+                                or (self.frame_number % 12 == 0)
+                            ):
+                                face_info = face_engine.process_person_crop(
+                                    frame, track.get("bbox")
+                                )
+                                if face_info:
+                                    self.recognized_faces[tid] = face_info
+                                    track["face"] = face_info
+                                    if (
+                                        face_info.get("is_known")
+                                        and not track.get("face_alerted")
+                                    ):
+                                        track["face_alerted"] = True
+                                        f_evt = {
+                                            "type": "FACE_RECOGNIZED",
+                                            "camera_id": self.camera_id,
+                                            "track_id": tid,
+                                            "object_type": "person",
+                                            "name": face_info["name"],
+                                            "role": face_info["role"],
+                                            "confidence": face_info["confidence"],
+                                            "title": f"Personnel Identified: {face_info['name']}",
+                                            "message": f"{face_info['name']} ({face_info['role']}) identified at {self.camera_name}",
+                                            "severity": "INFO",
+                                        }
+                                        self._store_event({
+                                            "type": "FACE_RECOGNIZED",
+                                            "event": f_evt,
+                                        })
+                                elif tid in self.recognized_faces:
+                                    track["face"] = self.recognized_faces[tid]
+                except Exception as face_err:
+                    print(f"⚠️ Face worker error: {face_err}")
+
+                # ============================================
+                # 4. VIRTUAL FENCE INTRUSION DETECTION
+                # ============================================
+
+                fence_events = []
+                try:
+                    h, w = frame.shape[:2]
+                    fence_events = fence_engine.check_intrusions(
+                        self.camera_id, tracks, w, h
+                    )
+                    self.active_intrusions = fence_events
+                    for f_evt in fence_events:
+                        self._store_event({
+                            "type": f_evt["type"],
+                            "event": f_evt,
+                        })
+                except Exception as fence_err:
+                    print(f"⚠️ Fence worker error: {fence_err}")
+
+                # ============================================
+                # 5. SUSPICIOUS BEHAVIOR (LOITERING, CROWD)
+                # ============================================
+
+                try:
+                    behavior_events = behavior_engine.process_tracks(
+                        self.camera_id, tracks
+                    )
+                    for b_evt in behavior_events:
+                        self._store_event({
+                            "type": b_evt["type"],
+                            "event": b_evt,
+                        })
+                except Exception as beh_err:
+                    print(f"⚠️ Behavior worker error: {beh_err}")
+
+                # ============================================
+                # 6. NIGHT MOVEMENT DETECTION
+                # ============================================
+
+                try:
+                    night_events, _, _ = night_engine.check_night_movement(
+                        self.camera_id, frame, tracks, fence_events
+                    )
+                    for n_evt in night_events:
+                        self._store_event({
+                            "type": n_evt["type"],
+                            "event": n_evt,
+                        })
+                except Exception as night_err:
+                    print(f"⚠️ Night worker error: {night_err}")
+
+                # ============================================
                 # EVENT MANAGEMENT
                 # ============================================
 
@@ -828,6 +961,24 @@ class CameraAIWorker:
                 track_id=event_copy.get(
                     "track_id"
                 ),
+
+                confidence=event_copy.get(
+                    "confidence"
+                ),
+
+                custom_title=event_copy.get(
+                    "title"
+                ),
+
+                custom_message=event_copy.get(
+                    "message"
+                ),
+
+                severity=event_copy.get(
+                    "severity"
+                ),
+
+                metadata=event_copy,
             )
 
         except Exception as error:
@@ -940,115 +1091,216 @@ class CameraAIWorker:
             except Exception:
                 continue
 
+            frame_h, frame_w = output.shape[:2]
+
             # ------------------------------------------------
-            # DRAW DETECTION BOXES
+            # 1. DRAW VIRTUAL FENCE ZONES
             # ------------------------------------------------
+            try:
+                zones = fence_engine.get_zones_for_camera(self.camera_id)
+                if zones:
+                    zone_overlay = output.copy()
+                    breached_zone_ids = {
+                        i.get("zone_id") for i in self.active_intrusions
+                    }
 
-            detections = (
-                self.latest_detections
-            )
+                    for z in zones:
+                        pts = [
+                            [int(px * frame_w), int(py * frame_h)]
+                            for px, py in z.get("points", [])
+                        ]
+                        if len(pts) >= 3:
+                            pts_arr = np.array(pts, np.int32).reshape((-1, 1, 2))
+                            is_breached = z.get("id") in breached_zone_ids
+                            zone_color = (0, 0, 255) if is_breached else (0, 165, 255)
 
-            if detections is None:
-                detections = []
+                            cv2.fillPoly(zone_overlay, [pts_arr], zone_color)
+                            cv2.polylines(output, [pts_arr], True, zone_color, 2)
 
-            for detection in detections:
+                            # Label first point
+                            lx, ly = pts[0]
+                            tag_text = f"ZONE: {z.get('name', 'Restricted')}"
+                            if is_breached:
+                                tag_text = f"⚠️ INTRUSION: {z.get('name', '')}"
+                            cv2.putText(
+                                output,
+                                tag_text,
+                                (lx + 5, max(ly - 5, 20)),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5,
+                                zone_color,
+                                1,
+                            )
 
-                if not isinstance(
-                    detection,
-                    dict,
-                ):
+                    cv2.addWeighted(zone_overlay, 0.18, output, 0.82, 0, output)
+            except Exception as zone_draw_err:
+                pass
+
+            # ------------------------------------------------
+            # 2. DRAW TRACKED OBJECTS WITH SIH BADGES
+            # ------------------------------------------------
+            tracks = self.latest_tracks if self.latest_tracks else []
+            intrusive_tids = {i.get("track_id") for i in self.active_intrusions}
+
+            # If no tracks yet, fallback to raw detections
+            items_to_draw = tracks if tracks else self.latest_detections
+
+            for item in items_to_draw:
+                if not isinstance(item, dict):
                     continue
 
-                bbox = detection.get(
-                    "bbox"
-                )
-
-                if not bbox:
-                    continue
-
-                if len(bbox) != 4:
+                bbox = item.get("bbox")
+                if not bbox or len(bbox) != 4:
                     continue
 
                 try:
-
-                    x1, y1, x2, y2 = map(
-                        int,
-                        bbox,
-                    )
-
+                    x1, y1, x2, y2 = map(int, bbox)
                 except Exception:
                     continue
 
-                object_name = detection.get(
-                    "class_name",
-                    detection.get(
-                        "object_type",
-                        "object",
-                    ),
-                )
+                track_id = item.get("track_id")
+                object_name = item.get(
+                    "object_type", item.get("class_name", "object")
+                ).lower()
+                confidence = float(item.get("confidence", 0.0))
 
-                confidence = detection.get(
-                    "confidence",
-                    0,
-                )
+                # Default colors
+                box_color = (0, 255, 0)
+                primary_label = f"{object_name.upper()} #{track_id if track_id else ''} {confidence*100:.0f}%"
+                secondary_label = None
 
-                try:
-                    confidence = float(
-                        confidence
-                    )
-                except Exception:
-                    confidence = 0.0
+                # Threat check: Is track in an active virtual fence intrusion?
+                if track_id and track_id in intrusive_tids:
+                    box_color = (0, 0, 255)
+                    secondary_label = "⛔ INTRUSION BREACH"
 
-                label = (
-                    f"{str(object_name).upper()} "
-                    f"{confidence * 100:.0f}%"
+                # Check Face Recognition (for Person)
+                face_data = item.get("face") or (
+                    self.recognized_faces.get(track_id) if track_id else None
                 )
+                if face_data:
+                    if face_data.get("is_known"):
+                        box_color = (0, 255, 128)
+                        primary_label = f"ID: {face_data.get('name', '').upper()}"
+                        secondary_label = f"ROLE: {face_data.get('role', 'Staff')}"
+                    else:
+                        box_color = (0, 220, 255)
+                        primary_label = "ID: UNKNOWN PERSON"
+
+                # Check ANPR (for Vehicle)
+                plate_num = item.get("plate_number")
+                if not plate_num and track_id:
+                    confirmed_p = anpr_manager.get_plate(track_id)
+                    if confirmed_p:
+                        plate_num = confirmed_p.get("plate_number")
+                        plate_cat = confirmed_p.get("category", "UNKNOWN")
+                    else:
+                        plate_cat = item.get("plate_category", "UNKNOWN")
+                else:
+                    plate_cat = item.get("plate_category", "UNKNOWN")
+
+                if plate_num:
+                    if plate_cat in {"SUSPICIOUS", "STOLEN", "RESTRICTED"}:
+                        box_color = (0, 0, 255)
+                        primary_label = f"🚨 {plate_num} [{plate_cat}]"
+                    elif plate_cat == "ALLOWED":
+                        box_color = (0, 255, 0)
+                        primary_label = f"🚗 {plate_num} [ALLOWED]"
+                    else:
+                        box_color = (0, 215, 255)
+                        primary_label = f"🚗 {plate_num} [UNREGISTERED]"
 
                 # Bounding box
+                cv2.rectangle(output, (x1, y1), (x2, y2), box_color, 2)
+
+                # Primary label background pill
+                label_y = max(y1 - 8, 20)
+                (lw, lh), _ = cv2.getTextSize(
+                    primary_label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
+                )
                 cv2.rectangle(
                     output,
-                    (x1, y1),
-                    (x2, y2),
-                    (0, 255, 0),
-                    2,
+                    (x1, label_y - lh - 4),
+                    (x1 + lw + 6, label_y + 2),
+                    (10, 15, 20),
+                    -1,
                 )
-
-                # Label
                 cv2.putText(
                     output,
-                    label,
-                    (
-                        x1,
-                        max(
-                            y1 - 10,
-                            20,
-                        ),
-                    ),
+                    primary_label,
+                    (x1 + 3, label_y - 2),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2,
+                    0.5,
+                    box_color,
+                    1,
                 )
 
-            # ------------------------------------------------
-            # STATUS OVERLAY
-            # ------------------------------------------------
+                # Secondary label if present
+                if secondary_label:
+                    sec_y = min(y2 + 16, frame_h - 5)
+                    (sw, sh), _ = cv2.getTextSize(
+                        secondary_label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1
+                    )
+                    cv2.rectangle(
+                        output,
+                        (x1, sec_y - sh - 2),
+                        (x1 + sw + 4, sec_y + 2),
+                        (10, 15, 20),
+                        -1,
+                    )
+                    cv2.putText(
+                        output,
+                        secondary_label,
+                        (x1 + 2, sec_y - 1),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.45,
+                        box_color,
+                        1,
+                    )
 
-            status_text = (
-                f"AVEKSHA NETRA | "
-                f"CAM {self.camera_id} | "
-                f"FRAME {current_frame_number}"
+            # ------------------------------------------------
+            # 3. TACTICAL HUD HEADER BAR
+            # ------------------------------------------------
+            hud_overlay = output.copy()
+            cv2.rectangle(hud_overlay, (0, 0), (frame_w, 38), (10, 15, 20), -1)
+            cv2.addWeighted(hud_overlay, 0.75, output, 0.25, 0, output)
+
+            # Left telemetry
+            hud_left = (
+                f"AVEKSHA NETRA | CAM-{self.camera_id:03d} | "
+                f"TRACKS: {len(tracks)}"
             )
-
             cv2.putText(
                 output,
-                status_text,
-                (15, 30),
+                hud_left,
+                (12, 24),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (0, 255, 0),
-                2,
+                0.55,
+                (0, 255, 180),
+                1,
             )
+
+            # Right telemetry: Night mode & Intrusions
+            right_parts = []
+            if self.night_mode:
+                right_parts.append(f"🌙 NIGHT MODE (LUX: {self.luminance:.0f})")
+            if self.active_intrusions:
+                right_parts.append(f"🚨 {len(self.active_intrusions)} INTRUSION")
+
+            if right_parts:
+                hud_right = " | ".join(right_parts)
+                (rw, _), _ = cv2.getTextSize(
+                    hud_right, cv2.FONT_HERSHEY_SIMPLEX, 0.52, 1
+                )
+                cv2.putText(
+                    output,
+                    hud_right,
+                    (max(10, frame_w - rw - 15), 24),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.52,
+                    (0, 80, 255) if self.active_intrusions else (0, 220, 255),
+                    2 if self.active_intrusions else 1,
+                )
 
             # ------------------------------------------------
             # ENCODE JPEG

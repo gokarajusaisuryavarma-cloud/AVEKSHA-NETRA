@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSystem } from "../context/SystemContext";
-import { aiApi } from "../api";
+import { aiApi, alertsApi } from "../api";
 import StatusBadge from "../components/common/StatusBadge";
 import EmptyState from "../components/common/EmptyState";
 import CameraFeed from "../components/surveillance/CameraFeed";
@@ -16,17 +16,27 @@ export function Alerts({ onNavigateToOverview }) {
 
   // State
   const [cameraEvents, setCameraEvents] = useState({});
+  const [backendAlerts, setBackendAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState("ALL"); // 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  const [sihCategoryFilter, setSihCategoryFilter] = useState("ALL"); // 'ALL' | 'INTRUSIONS' | 'ANPR' | 'FACE' | 'BEHAVIOR' | 'NIGHT'
   const [selectedCameraFilter, setSelectedCameraFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(() => new Set());
   const [selectedAlertForInspection, setSelectedAlertForInspection] = useState(null);
 
   // ============================================================
-  // FETCH EVENTS FROM ALL CAMERAS
+  // FETCH EVENTS & ALERTS FROM ALL CAMERAS & BACKEND
   // ============================================================
   const fetchAllCameraEvents = useCallback(async () => {
+    // 0. Fetch centralized live alerts
+    try {
+      const bRes = await alertsApi.getAlerts();
+      if (Array.isArray(bRes?.alerts)) {
+        setBackendAlerts(bRes.alerts);
+      }
+    } catch {}
+
     if (!cameras || cameras.length === 0) {
       setLoading(false);
       return;
@@ -93,9 +103,11 @@ export function Alerts({ onNavigateToOverview }) {
           camera_name: cam.name,
           location: cam.location,
           object_type: objType,
-          title,
-          threatCode,
-          severity,
+          alert_type: ev.type,
+          title: ev.title || title,
+          message: ev.message,
+          threatCode: ev.type || threatCode,
+          severity: ev.severity || severity,
           confidence: ev.confidence,
           timestamp,
           isAcknowledged: acknowledgedAlerts.has(alertId),
@@ -103,9 +115,28 @@ export function Alerts({ onNavigateToOverview }) {
       });
     });
 
+    // Merge backend AI engine alerts
+    backendAlerts.forEach((ba) => {
+      list.push({
+        id: ba.id,
+        camera_id: ba.camera_id,
+        camera_name: ba.camera_name || `CAM-${String(ba.camera_id).padStart(3, "0")}`,
+        location: ba.location || "Sector Monitored",
+        object_type: ba.object_type || "Object",
+        alert_type: ba.alert_type,
+        title: ba.title || "THREAT ALERT",
+        message: ba.message,
+        threatCode: ba.alert_type || "THR-AI",
+        severity: ba.severity || "HIGH",
+        confidence: ba.confidence,
+        timestamp: ba.timestamp || ba.created_at || new Date().toISOString(),
+        isAcknowledged: ba.status === "ACKNOWLEDGED" || acknowledgedAlerts.has(ba.id),
+      });
+    });
+
     // Sort descending by timestamp
     return list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [cameras, cameraEvents, acknowledgedAlerts]);
+  }, [cameras, cameraEvents, backendAlerts, acknowledgedAlerts]);
 
   // Filtered list
   const filteredAlerts = useMemo(() => {
@@ -118,7 +149,16 @@ export function Alerts({ onNavigateToOverview }) {
       if (selectedCameraFilter !== "ALL" && String(alert.camera_id) !== String(selectedCameraFilter)) {
         return false;
       }
-      // 3. Search query
+      // 3. SIH Category filter
+      if (sihCategoryFilter !== "ALL") {
+        const t = String(alert.alert_type || alert.title || "").toUpperCase();
+        if (sihCategoryFilter === "INTRUSIONS" && !t.includes("INTRUSION")) return false;
+        if (sihCategoryFilter === "ANPR" && !t.includes("ANPR") && !t.includes("PLATE") && !t.includes("WATCHLIST")) return false;
+        if (sihCategoryFilter === "FACE" && !t.includes("FACE") && !t.includes("PERSONNEL")) return false;
+        if (sihCategoryFilter === "BEHAVIOR" && !t.includes("LOITERING") && !t.includes("STATIONARY") && !t.includes("CROWD")) return false;
+        if (sihCategoryFilter === "NIGHT" && !t.includes("NIGHT")) return false;
+      }
+      // 4. Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = alert.title.toLowerCase().includes(q);
@@ -129,7 +169,7 @@ export function Alerts({ onNavigateToOverview }) {
       }
       return true;
     });
-  }, [processedAlerts, severityFilter, selectedCameraFilter, searchQuery]);
+  }, [processedAlerts, severityFilter, sihCategoryFilter, selectedCameraFilter, searchQuery]);
 
   // Count summaries
   const counts = useMemo(() => {
@@ -149,8 +189,11 @@ export function Alerts({ onNavigateToOverview }) {
   }, [processedAlerts]);
 
   // Toggle acknowledge
-  const handleAcknowledge = (alertId, e) => {
+  const handleAcknowledge = async (alertId, e) => {
     e?.stopPropagation();
+    try {
+      await alertsApi.acknowledge(alertId);
+    } catch {}
     setAcknowledgedAlerts((prev) => {
       const next = new Set(prev);
       if (next.has(alertId)) {
@@ -206,6 +249,45 @@ export function Alerts({ onNavigateToOverview }) {
             <span className="chip-name">LOW RISK</span>
           </div>
         </div>
+      </div>
+
+      {/* 1.5 SIH Threat Category Filter Chips */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "14px", overflowX: "auto", paddingBottom: "4px" }}>
+        {[
+          { id: "ALL", label: "ALL CATEGORIES" },
+          { id: "INTRUSIONS", label: "🚫 PERIMETER BREACH" },
+          { id: "ANPR", label: "🚗 ANPR & WATCHLIST" },
+          { id: "FACE", label: "👤 FACE RECOGNITION" },
+          { id: "BEHAVIOR", label: "⏳ SUSPICIOUS BEHAVIOR" },
+          { id: "NIGHT", label: "🌙 NIGHT MOVEMENT" },
+        ].map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setSihCategoryFilter(cat.id)}
+            style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              padding: "6px 14px",
+              borderRadius: "4px",
+              border:
+                sihCategoryFilter === cat.id
+                  ? "1px solid var(--primary, #06b6d4)"
+                  : "1px solid rgba(255,255,255,0.08)",
+              background:
+                sihCategoryFilter === cat.id
+                  ? "rgba(6, 182, 212, 0.15)"
+                  : "var(--card-bg, #0f172a)",
+              color:
+                sihCategoryFilter === cat.id
+                  ? "var(--primary, #06b6d4)"
+                  : "var(--text-muted, #94a3b8)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {cat.label}
+          </button>
+        ))}
       </div>
 
       {/* 2. Controls & Search Filter Bar */}

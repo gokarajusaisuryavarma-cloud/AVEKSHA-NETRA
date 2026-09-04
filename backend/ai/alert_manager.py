@@ -49,6 +49,24 @@ START_EVENT_TYPES = {
     "OBJECT_DETECTED",
     "DETECTED",
     "NEW_DETECTION",
+    # 1. Face Recognition
+    "FACE_RECOGNIZED",
+    "FACE_UNKNOWN",
+    # 2. ANPR
+    "ANPR_DETECTED",
+    "ANPR_WATCHLIST",
+    # 3. Virtual Fence
+    "PERSON_INTRUSION",
+    "VEHICLE_INTRUSION",
+    "VIRTUAL_FENCE_INTRUSION",
+    # 4. Suspicious Behavior
+    "LOITERING_DETECTED",
+    "STATIONARY_OBJECT",
+    "CROWD_GATHERING",
+    # 5. Night Movement
+    "NIGHT_PERSON_MOVEMENT",
+    "NIGHT_VEHICLE_MOVEMENT",
+    "NIGHT_INTRUSION",
 }
 
 
@@ -349,7 +367,11 @@ def process_ai_event(
     event_type,
     object_type,
     track_id,
-    confidence=None
+    confidence=None,
+    custom_title=None,
+    custom_message=None,
+    severity=None,
+    metadata=None,
 ):
 
     # ========================================================
@@ -407,6 +429,10 @@ def process_ai_event(
     # CREATE ALERT
     # ========================================================
 
+    final_title = custom_title or _generate_title(object_type)
+    final_message = custom_message or _generate_message(object_type, camera_name, location)
+    final_severity = severity or _get_severity(object_type)
+
     alert = {
 
         # ----------------------------------------------------
@@ -416,22 +442,18 @@ def process_ai_event(
         "id":
             _generate_alert_id(),
 
+        "alert_type":
+            event_type,
 
         # ----------------------------------------------------
         # BASIC INFORMATION
         # ----------------------------------------------------
 
         "title":
-            _generate_title(
-                object_type
-            ),
+            final_title,
 
         "message":
-            _generate_message(
-                object_type,
-                camera_name,
-                location
-            ),
+            final_message,
 
 
         # ----------------------------------------------------
@@ -439,9 +461,7 @@ def process_ai_event(
         # ----------------------------------------------------
 
         "severity":
-            _get_severity(
-                object_type
-            ),
+            final_severity,
 
 
         # ----------------------------------------------------
@@ -450,6 +470,8 @@ def process_ai_event(
 
         "status":
             "ACTIVE",
+        "metadata":
+            metadata or {},
 
 
         # ----------------------------------------------------
@@ -1094,6 +1116,27 @@ def reset_alert_manager():
         alerts.clear()
 
         _next_alert_id = 1
+
+
+# ============================================================
+# ACKNOWLEDGE ALERT
+# ============================================================
+
+def acknowledge_alert(alert_id):
+
+    with alerts_lock:
+
+        for alert in alerts:
+
+            if str(alert.get("id")) == str(alert_id):
+
+                alert["status"] = "ACKNOWLEDGED"
+
+                alert["acknowledged_at"] = datetime.now().isoformat()
+
+                return alert
+
+    return None
 
 
     print(
