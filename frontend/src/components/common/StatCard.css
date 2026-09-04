@@ -1,0 +1,109 @@
+/* ============================================================
+   AVEKSHA NETRA — TACTICAL STAT CARD STYLES
+   ============================================================ */
+
+.tactical-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-normal);
+}
+
+.tactical-stat-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.stat-card-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.stat-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.stat-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.stat-card-subtext {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-card-code {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+}
+
+/* Tone Variations */
+.tactical-stat-card.tone-online .stat-card-value {
+  color: #34d399;
+}
+.tactical-stat-card.tone-online .stat-card-icon {
+  color: var(--color-online);
+}
+
+.tactical-stat-card.tone-threat .stat-card-value {
+  color: #f87171;
+}
+.tactical-stat-card.tone-threat .stat-card-icon {
+  color: var(--color-threat);
+}
+
+.tactical-stat-card.tone-info .stat-card-value {
+  color: #38bdf8;
+}
+.tactical-stat-card.tone-info .stat-card-icon {
+  color: var(--color-info);
+}
+
+.tactical-stat-card.tone-warning .stat-card-value {
+  color: #fbbf24;
+}
+.tactical-stat-card.tone-warning .stat-card-icon {
+  color: var(--color-warning);
+}

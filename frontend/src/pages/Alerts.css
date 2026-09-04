@@ -1,476 +1,316 @@
-.alerts-page {
+/* ============================================================
+   AVEKSHA NETRA — THREAT ALERTS CENTER STYLES
+   ============================================================ */
+
+.alerts-center-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   width: 100%;
 }
 
-
-/* ==================================================
-   HEADER
-   ================================================== */
-
 .alerts-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
-
-  gap: 30px;
-
-  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 16px;
 }
 
-.alerts-header h2 {
-  margin-top: 8px;
-  margin-bottom: 8px;
+/* Summary Chips Filter */
+.alerts-summary-chips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.alerts-header p {
-  color: #708093;
-  font-size: 14px;
-}
-
-.alert-system-status {
+.summary-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-
-  padding: 10px 14px;
-
-  border: 1px solid #315342;
-  border-radius: 4px;
-
-  color: #69c99a;
-
-  font-size: 10px;
-  letter-spacing: 1.3px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.alert-status-dot {
-  width: 7px;
-  height: 7px;
-
-  border-radius: 50%;
-
-  background: #5cc795;
-
-  box-shadow:
-    0 0 8px rgba(92, 199, 149, 0.55);
+.summary-chip:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
 }
 
-
-/* ==================================================
-   STATISTICS
-   ================================================== */
-
-.alert-stats {
-  display: grid;
-
-  grid-template-columns:
-    repeat(4, minmax(0, 1fr));
-
-  gap: 15px;
-
-  margin-bottom: 24px;
+.summary-chip.active {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.12);
 }
 
-.alert-stat-card {
-  padding: 20px;
-
-  background: #0c1318;
-
-  border: 1px solid #233039;
-
-  border-radius: 5px;
-
-  min-height: 110px;
+.chip-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.alert-stat-card span {
-  display: block;
-
+.chip-name {
+  font-family: var(--font-mono);
   font-size: 9px;
-
-  letter-spacing: 1.5px;
-
-  color: #718394;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
 }
 
-.alert-stat-card strong {
-  display: block;
-
-  margin-top: 10px;
-
-  font-size: 30px;
-
-  color: #d8e0da;
+.summary-chip.tone-high .chip-count {
+  color: #f87171;
 }
 
-.alert-stat-card small {
-  color: #566b79;
-
-  font-size: 10px;
+.summary-chip.tone-med .chip-count {
+  color: #fbbf24;
 }
 
-.alert-stat-card.critical {
-  border-left: 3px solid #9b5149;
+.summary-chip.tone-low .chip-count {
+  color: #38bdf8;
 }
 
-.alert-stat-card.high {
-  border-left: 3px solid #a06a47;
+/* Filter Bar */
+.alerts-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
 }
 
-.alert-stat-card.medium {
-  border-left: 3px solid #8b8846;
+.filter-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
 }
 
-.alert-stat-card.total {
-  border-left: 3px solid #55765f;
+.filter-input-wrap .tactical-input {
+  border: none;
+  background: transparent;
+  padding: 4px;
 }
 
+.filter-input-wrap .tactical-input:focus {
+  box-shadow: none;
+}
 
-/* ==================================================
-   PANELS
-   ================================================== */
+.filter-select-wrap {
+  min-width: 180px;
+}
 
-.alerts-panel {
-  background: #0c1318;
+.select-input {
+  cursor: pointer;
+}
 
-  border: 1px solid #233039;
-
-  border-radius: 5px;
-
-  margin-bottom: 20px;
-
+/* Table */
+.alerts-feed-wrapper {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
-.alerts-panel-header {
+.alerts-loading {
   display: flex;
-
-  justify-content: space-between;
-  align-items: center;
-
-  padding: 20px;
-
-  border-bottom: 1px solid #202c33;
-}
-
-.alerts-panel-header h3 {
-  margin-top: 7px;
-
-  color: #d3ddd6;
-}
-
-.alert-count {
-  color: #718394;
-
-  font-size: 9px;
-
-  letter-spacing: 1.3px;
-}
-
-
-/* ==================================================
-   NO ALERTS
-   ================================================== */
-
-.no-alerts {
-  min-height: 260px;
-
-  display: flex;
-
   flex-direction: column;
-
   align-items: center;
   justify-content: center;
-
-  text-align: center;
-}
-
-.secure-icon {
-  width: 58px;
-  height: 58px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  border: 1px solid #345444;
-
-  border-radius: 50%;
-
-  color: #6bc69a;
-
-  font-size: 25px;
-
-  margin-bottom: 16px;
-
-  background: rgba(70, 130, 95, 0.06);
-}
-
-.no-alerts h3 {
-  color: #cbd6ce;
-
-  margin-bottom: 7px;
-}
-
-.no-alerts p {
-  color: #617382;
-
-  font-size: 12px;
-}
-
-
-/* ==================================================
-   TABLE
-   ================================================== */
-
-.alert-table-header {
-  display: grid;
-
-  grid-template-columns:
-    1fr 1.2fr 2fr 1fr 1fr;
-
-  padding: 13px 20px;
-
-  background: #0a1014;
-
-  border-bottom: 1px solid #202c33;
-
-  color: #637686;
-
-  font-size: 9px;
-
-  letter-spacing: 1.3px;
-}
-
-.alert-table-empty {
-  min-height: 210px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  gap: 8px;
-}
-
-.empty-alert-icon {
-  font-size: 28px;
-
-  color: #53686d;
-
-  margin-bottom: 5px;
-}
-
-.alert-table-empty strong {
-  color: #9aa9a1;
-
-  font-size: 13px;
-}
-
-.alert-table-empty small {
-  color: #586b78;
-
+  padding: 60px;
+  gap: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
-
-/* ==================================================
-   RESPONSIVE
-   ================================================== */
-
-@media (max-width: 900px) {
-
-  .alert-stats {
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-  }
-
+.alerts-table-container {
+  overflow-x: auto;
 }
 
-@media (max-width: 650px) {
-
-  .alerts-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .alert-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .alert-table-header {
-    display: none;
-  }
-
-}
-/* ==================================================
-   ACTIVE ALERT LIST
-   ================================================== */
-
-.active-alert-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.active-alert-row {
-  display: grid;
-  grid-template-columns: 42px 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 17px 20px;
-  border-bottom: 1px solid #202c33;
-}
-
-.active-alert-row:last-child {
-  border-bottom: none;
-}
-
-.event-icon-small {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #33434b;
-  background: #0a1014;
-  color: #91a49b;
-  font-size: 14px;
-}
-
-.event-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-main strong {
-  color: #d2ddd6;
+.tactical-alerts-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
   font-size: 12px;
-  letter-spacing: 0.5px;
 }
 
-.event-main span {
-  color: #84949e;
+.tactical-alerts-table thead th {
+  background: var(--bg-surface);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
   font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
 }
 
-.event-main small {
-  color: #596d78;
-  font-size: 10px;
+.tactical-alerts-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
 }
 
-.event-meta {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: #687b85;
-  font-size: 9px;
-  letter-spacing: 0.8px;
+.tactical-alerts-table tbody tr:hover {
+  background: var(--bg-card-hover);
 }
 
-.severity-critical,
-.severity-high,
-.severity-medium {
-  font-size: 9px;
+.tactical-alerts-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+.alert-row.acknowledged {
+  opacity: 0.6;
+}
+
+.time-cell {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.title-cell {
+  min-width: 160px;
+}
+
+.alert-event-name {
   font-weight: 600;
-  letter-spacing: 1px;
+  color: var(--text-primary);
 }
 
-.severity-critical {
-  color: #d9786d;
+.alert-code {
+  font-size: 9px;
+  color: var(--text-dim);
 }
 
-.severity-high {
-  color: #d69a6d;
+.location-name {
+  color: var(--text-secondary);
 }
 
-.severity-medium {
-  color: #c0b968;
+.camera-tag {
+  font-size: 10px;
+  color: #38bdf8;
 }
 
+.object-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
 
-/* ==================================================
-   ALERT HISTORY ROWS
-   ================================================== */
+.confidence-chip {
+  color: #34d399;
+  font-size: 11px;
+}
 
-.alert-table-body {
+.status-pill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.status-pill.active {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.status-pill.ack {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-action-inspect {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-action-inspect:hover {
+  background: rgba(14, 165, 233, 0.25);
+}
+
+.btn-action-ack {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-action-ack:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.btn-action-ack.is-ack {
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Large Inspection Modal */
+.modal-large {
+  max-width: 720px;
+}
+
+.modal-viewport-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+}
+
+.modal-threat-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.threat-detail-col {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
-.alert-table-row {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr 2fr 1fr 1fr;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 20px;
-  border-bottom: 1px solid #1c272e;
-  color: #82929c;
-  font-size: 10px;
-}
-
-.alert-table-row:hover {
-  background: #0f171c;
-}
-
-.alert-event-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.alert-event-cell > span:last-child {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.alert-event-cell strong {
-  color: #c8d3cc;
-  font-size: 10px;
-}
-
-.alert-event-cell small {
-  color: #5f737d;
+.detail-label {
+  font-family: var(--font-mono);
   font-size: 9px;
-}
-
-.event-active {
-  color: #68c995;
-  font-size: 9px;
-  letter-spacing: 0.8px;
-}
-
-.event-ended {
-  color: #71818a;
-  font-size: 9px;
-  letter-spacing: 0.8px;
-}
-
-
-/* ==================================================
-   RESPONSIVE ALERT ROWS
-   ================================================== */
-
-@media (max-width: 800px) {
-
-  .active-alert-row {
-    grid-template-columns: 38px 1fr;
-  }
-
-  .active-alert-row .event-meta {
-    grid-column: 2;
-    flex-wrap: wrap;
-  }
-
-  .alert-table-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
 }

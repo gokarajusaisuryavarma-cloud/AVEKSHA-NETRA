@@ -9,14 +9,10 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CameraManagement from "./pages/CameraManagement";
-
-// ==================================================
-// API CONFIGURATION
-// ==================================================
-
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000";
+import Alerts from "./pages/Alerts";
+import Events from "./pages/Events";
+import Analytics from "./pages/Analytics";
+import { camerasApi } from "./api";
 
 
 // ==================================================
@@ -105,34 +101,10 @@ function App() {
     setCameraLoading(true);
 
     try {
-
-      const response = await fetch(
-        `${API_BASE}/api/cameras`
-      );
-
-      if (!response.ok) {
-
-        throw new Error(
-          `Camera API failed: ${response.status}`
-        );
-
-      }
-
-      const data = await response.json();
-
-      setCameras(
-        Array.isArray(data)
-          ? data
-          : []
-      );
-
+      const data = await camerasApi.getCameras();
+      setCameras(Array.isArray(data) ? data : []);
     } catch (error) {
-
-      console.error(
-        "Camera API error:",
-        error
-      );
-
+      console.error("Camera API error:", error);
     } finally {
 
       setCameraLoading(false);
@@ -277,6 +249,10 @@ function App() {
           setAppMode("login");
         }}
 
+        onLogin={() => {
+          setAppMode("login");
+        }}
+
         onBack={handleBackToLanding}
 
       />
@@ -377,24 +353,7 @@ function App() {
               ================================================== */}
 
           {activePage === "alerts" && (
-
-            <div className="coming-soon">
-
-              <span className="section-label">
-                THREAT MONITOR
-              </span>
-
-              <h2>
-                Alert Center
-              </h2>
-
-              <p>
-                Real-time AI threat alerts will
-                appear here.
-              </p>
-
-            </div>
-
+            <Alerts onNavigateToOverview={() => setActivePage("overview")} />
           )}
 
 
@@ -403,24 +362,7 @@ function App() {
               ================================================== */}
 
           {activePage === "events" && (
-
-            <div className="coming-soon">
-
-              <span className="section-label">
-                EVENT MONITOR
-              </span>
-
-              <h2>
-                Event Monitor
-              </h2>
-
-              <p>
-                Detection events and surveillance
-                history will appear here.
-              </p>
-
-            </div>
-
+            <Events />
           )}
 
 
@@ -429,24 +371,7 @@ function App() {
               ================================================== */}
 
           {activePage === "analytics" && (
-
-            <div className="coming-soon">
-
-              <span className="section-label">
-                SYSTEM ANALYTICS
-              </span>
-
-              <h2>
-                Analytics Center
-              </h2>
-
-              <p>
-                Detection statistics and operational
-                analytics will appear here.
-              </p>
-
-            </div>
-
+            <Analytics />
           )}
 
 

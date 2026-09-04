@@ -1,176 +1,142 @@
 import { useState } from "react";
+import { authApi } from "../api";
 import "./Register.css";
 
-function Register({ onRegister, onBack }) {
-
+function Register({ onRegister, onBack, onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const handleRegister = async (event) => {
-
     event.preventDefault();
+    if (loading) return;
 
-    setError("");
-    setSuccess("");
+    setError(null);
+    setSuccess(null);
 
-    // ==============================
-    // VALIDATION
-    // ==============================
-
-    if (!username.trim()) {
-      setError("Please enter a username.");
+    // Client-side validations
+    const cleanUsername = username.trim();
+    if (!cleanUsername) {
+      setError({
+        code: "VALIDATION ERROR",
+        message: "Please enter an operator username.",
+      });
       return;
     }
 
-    if (username.trim().length < 3) {
-      setError("Username must contain at least 3 characters.");
+    if (cleanUsername.length < 3) {
+      setError({
+        code: "VALIDATION ERROR",
+        message: "Operator username must contain at least 3 characters.",
+      });
       return;
     }
 
     if (!password) {
-      setError("Please enter a password.");
+      setError({
+        code: "VALIDATION ERROR",
+        message: "Please enter a secure password.",
+      });
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must contain at least 6 characters.");
+      setError({
+        code: "VALIDATION ERROR",
+        message: "Password must contain at least 6 characters.",
+      });
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError({
+        code: "PASSWORD MISMATCH",
+        message: "Passwords do not match. Please verify and re-enter.",
+      });
       return;
     }
 
     setLoading(true);
 
-    // ==============================
-    // REGISTER API
-    // ==============================
-
     try {
+      const data = await authApi.register({
+        username: cleanUsername,
+        password: password,
+      });
 
-      const response = await fetch(
-        "https://aveksha-netra-backend.onrender.com/api/auth/register",
-        {
-          method: "POST",
+      console.log("Registration successful:", data);
 
-          headers: {
-            "Content-Type": "application/json"
-          },
-
-          body: JSON.stringify({
-            username: username.trim(),
-            password: password
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      // ==============================
-      // API ERROR
-      // ==============================
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.detail ||
-          "Registration failed. Please try again."
-        );
-
-      }
-
-      // ==============================
-      // SUCCESS
-      // ==============================
-
-      console.log(
-        "Registration successful:",
-        data
-      );
-
-      setSuccess(
-        "Registration successful. Redirecting to login..."
-      );
+      setSuccess({
+        title: "OPERATOR REGISTERED",
+        message: `Account '${cleanUsername}' created successfully. Redirecting to login...`,
+      });
 
       setUsername("");
       setPassword("");
       setConfirmPassword("");
 
-      // Give the user a moment to see success
+      // Automatically transition to login page after 1.2s
       setTimeout(() => {
-
         if (onRegister) {
           onRegister();
+        } else if (onLogin) {
+          onLogin();
         }
-
-      }, 1000);
-
+      }, 1200);
     } catch (err) {
+      console.error("Registration error:", err);
 
-      console.error(
-        "Registration error:",
-        err
-      );
+      const status = err?.status;
+      const rawMsg = String(err?.message || "").toLowerCase();
+      const detailMsg = String(err?.data?.detail || "").toLowerCase();
 
       if (
-        err instanceof TypeError &&
-        err.message === "Failed to fetch"
+        err?.isNetworkError ||
+        !status ||
+        rawMsg.includes("failed to fetch") ||
+        rawMsg.includes("network") ||
+        rawMsg.includes("unavailable") ||
+        rawMsg.includes("connection")
       ) {
-
-        setError(
-          "Unable to connect to AVEKSHA NETRA server. " +
-          "Please make sure the backend is running."
-        );
-
+        setError({
+          code: "CONNECTION ERROR",
+          message: "Authentication service unavailable.",
+          subtext: "Please verify that the backend server is running and accessible.",
+        });
+      } else if (
+        status === 400 &&
+        (rawMsg.includes("already exists") || detailMsg.includes("already exists"))
+      ) {
+        setError({
+          code: "ACCOUNT EXISTS",
+          message: `Username '${cleanUsername}' is already registered.`,
+          subtext: "Please choose a different operator ID or login with existing credentials.",
+        });
       } else {
-
-        setError(
-          err.message ||
-          "Registration failed. Please try again."
-        );
-
+        setError({
+          code: "REGISTRATION FAILED",
+          message: err?.message || "Unable to complete operator registration. Please try again.",
+        });
       }
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   return (
-
     <div className="register-page">
-
-      {/* ==============================
-          BACKGROUND
-      ============================== */}
-
+      {/* Background with tactical overlay */}
       <div className="register-background">
-
-        <div className="camouflage-pattern"></div>
-
-        <div className="background-grid"></div>
-
-        <div className="background-glow"></div>
-
+        <div className="tactical-grid-bg"></div>
+        <div className="tactical-radial-glow"></div>
       </div>
 
-
-      {/* ==============================
-          REGISTER CONTAINER
-      ============================== */}
-
       <div className="register-container">
-
+        {/* Back button */}
         <button
           type="button"
           className="back-button"
@@ -180,333 +146,177 @@ function Register({ onRegister, onBack }) {
           ← BACK TO MAIN
         </button>
 
-
-        {/* ==============================
-            BRAND
-        ============================== */}
-
+        {/* Brand header */}
         <div className="register-header">
-
-          <div className="register-mark">
-            AN
-          </div>
-
-          <h1>
-            AVEKSHA
-          </h1>
-
-          <div className="register-subtitle">
-            NETRA
-          </div>
-
-          <p>
-            INTELLIGENT SURVEILLANCE PLATFORM
-          </p>
-
+          <div className="register-mark">AN</div>
+          <h1>AVEKSHA</h1>
+          <div className="register-subtitle">NETRA</div>
+          <p>INTELLIGENT SURVEILLANCE PLATFORM</p>
         </div>
 
-
-        {/* ==============================
-            REGISTER CARD
-        ============================== */}
-
+        {/* Register Card */}
         <div className="register-card">
-
           <div className="register-card-header">
-
             <div>
-
-              <span className="register-section-label">
-                OPERATOR ACCESS
-              </span>
-
-              <h2>
-                CREATE ACCOUNT
-              </h2>
-
+              <span className="register-section-label">PERSONNEL ENROLLMENT</span>
+              <h2>CREATE OPERATOR ACCOUNT</h2>
             </div>
-
             <div className="secure-indicator">
-
               <span className="secure-dot"></span>
-
-              SECURE
-
+              SECURE ACCESS
             </div>
-
           </div>
-
 
           <div className="register-divider"></div>
 
-
-          {/* ==============================
-              FORM
-          ============================== */}
-
-          <form
-            className="register-form"
-            onSubmit={handleRegister}
-          >
-
-            {/* USERNAME */}
-
+          {/* Form */}
+          <form className="register-form" onSubmit={handleRegister}>
+            {/* Operator Username */}
             <div className="input-group">
-
-              <label htmlFor="register-username">
-                OPERATOR ID
-              </label>
-
+              <label htmlFor="register-username">OPERATOR USERNAME</label>
               <div className="input-wrapper">
-
-                <span className="input-icon">
-                  ◉
-                </span>
-
+                <span className="input-icon">◉</span>
                 <input
                   id="register-username"
                   type="text"
                   value={username}
-                  onChange={(event) =>
-                    setUsername(event.target.value)
-                  }
-                  placeholder="Create operator ID"
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. operator_delta"
                   autoComplete="username"
                   disabled={loading}
                 />
-
               </div>
-
             </div>
 
-
-            {/* PASSWORD */}
-
+            {/* Password */}
             <div className="input-group">
-
-              <label htmlFor="register-password">
-                PASSWORD
-              </label>
-
+              <label htmlFor="register-password">PASSWORD</label>
               <div className="input-wrapper">
-
-                <span className="input-icon">
-                  ◆
-                </span>
-
+                <span className="input-icon">◆</span>
                 <input
                   id="register-password"
                   type="password"
                   value={password}
-                  onChange={(event) =>
-                    setPassword(event.target.value)
-                  }
-                  placeholder="Create secure password"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
                   autoComplete="new-password"
                   disabled={loading}
                 />
-
               </div>
-
             </div>
 
-
-            {/* CONFIRM PASSWORD */}
-
+            {/* Confirm Password */}
             <div className="input-group">
-
-              <label htmlFor="confirm-password">
-                CONFIRM PASSWORD
-              </label>
-
+              <label htmlFor="confirm-password">CONFIRM PASSWORD</label>
               <div className="input-wrapper">
-
-                <span className="input-icon">
-                  ◆
-                </span>
-
+                <span className="input-icon">◆</span>
                 <input
                   id="confirm-password"
                   type="password"
                   value={confirmPassword}
-                  onChange={(event) =>
-                    setConfirmPassword(event.target.value)
-                  }
-                  placeholder="Confirm secure password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
                   autoComplete="new-password"
                   disabled={loading}
                 />
-
               </div>
-
             </div>
 
-
-            {/* ERROR */}
-
+            {/* Error Message */}
             {error && (
-
-              <div className="register-error">
-
-                <span className="error-icon">
-                  ⚠
-                </span>
-
-                <div>
-
-                  <strong>
-                    REGISTRATION FAILED
-                  </strong>
-
-                  <span>
-                    {error}
-                  </span>
-
+              <div className="register-error" role="alert">
+                <div className="register-error-badge">
+                  <span className="error-icon">⚠</span>
+                  <span>[ {error.code || "REGISTRATION ERROR"} ]</span>
                 </div>
-
+                <div className="register-error-text">
+                  {error.message || error}
+                </div>
+                {error.subtext && (
+                  <div className="register-error-subtext">
+                    {error.subtext}
+                  </div>
+                )}
               </div>
-
             )}
 
-
-            {/* SUCCESS */}
-
+            {/* Success Message */}
             {success && (
-
-              <div className="register-success">
-
-                <span>
-                  ✓
-                </span>
-
-                <div>
-
-                  <strong>
-                    ACCOUNT CREATED
-                  </strong>
-
-                  <span>
-                    {success}
-                  </span>
-
+              <div className="register-success" role="status">
+                <div className="register-success-badge">
+                  <span>✓</span>
+                  <span>[ {success.title || "SUCCESS"} ]</span>
                 </div>
-
+                <div className="register-success-text">
+                  {success.message}
+                </div>
               </div>
-
             )}
 
-
-            {/* SUBMIT */}
-
+            {/* Submit Button */}
             <button
               type="submit"
               className="register-submit"
               disabled={loading}
             >
-
               {loading ? (
-
                 <>
                   <span className="loading-spinner"></span>
                   CREATING ACCOUNT...
                 </>
-
               ) : (
-
                 <>
                   CREATE OPERATOR ACCOUNT
-                  <span className="button-arrow">
-                    →
-                  </span>
+                  <span className="button-arrow">→</span>
                 </>
-
               )}
-
             </button>
-
           </form>
 
-
-          {/* SECURITY */}
-
-          <div className="security-info">
-
-            <div className="security-row">
-
-              <span className="security-icon">
-                ✓
-              </span>
-
-              <span>
-                SECURE ACCOUNT CREATION
-              </span>
-
-            </div>
-
-            <div className="security-row">
-
-              <span className="security-icon">
-                ✓
-              </span>
-
-              <span>
-                AUTHORIZED PERSONNEL ONLY
-              </span>
-
-            </div>
-
+          {/* Switch to Login Link */}
+          <div className="login-link-container">
+            <span>ALREADY REGISTERED?</span>
+            <button
+              type="button"
+              className="login-link"
+              onClick={onLogin || onRegister}
+              disabled={loading}
+            >
+              OPERATOR LOGIN →
+            </button>
           </div>
 
+          {/* Security Info */}
+          <div className="security-info">
+            <div className="security-row">
+              <span className="security-icon">✓</span>
+              <span>ROLE-BASED AUTHORIZATION & RBAC ENFORCEMENT</span>
+            </div>
+            <div className="security-row">
+              <span className="security-icon">✓</span>
+              <span>SHA-256 ENCRYPTED CREDENTIAL STORAGE</span>
+            </div>
+          </div>
         </div>
 
-
-        {/* SYSTEM STATUS */}
-
+        {/* Tactical Status Banner */}
         <div className="register-system-status">
-
           <span className="system-status-dot"></span>
-
-          AVEKSHA NETRA SYSTEM
-
-          <span className="status-divider">
-            |
-          </span>
-
-          SECURE CONNECTION
-
+          AVEKSHA NETRA NODE
+          <span className="status-divider">|</span>
+          DEFENSE LEVEL 4 ENCRYPTION
         </div>
 
-
-        {/* FOOTER */}
-
+        {/* Footer */}
         <div className="register-footer">
-
-          <span>
-            AVEKSHA NETRA
-          </span>
-
-          <span>
-            •
-          </span>
-
-          <span>
-            COMMAND & SURVEILLANCE SYSTEM
-          </span>
-
-          <span>
-            •
-          </span>
-
-          <span>
-            v1.0.0
-          </span>
-
+          <span>AVEKSHA NETRA</span>
+          <span>•</span>
+          <span>INTELLIGENT SURVEILLANCE PLATFORM</span>
+          <span>•</span>
+          <span>v2.4</span>
         </div>
-
       </div>
-
     </div>
-
   );
 }
 

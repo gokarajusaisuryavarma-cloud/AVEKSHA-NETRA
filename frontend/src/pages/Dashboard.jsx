@@ -1,1975 +1,408 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+/**
+ * AVEKSHA NETRA — Rebuilt Tactical Command Center Dashboard
+ * Real-time AI surveillance overview, multi-camera grid, and live threat feed.
+ */
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSystem, SYSTEM_STATUS } from "../context/SystemContext";
+import { aiApi } from "../api";
+import StatCard from "../components/common/StatCard";
+import CameraCard from "../components/surveillance/CameraCard";
+import AlertCard from "../components/surveillance/AlertCard";
+import EmptyState from "../components/common/EmptyState";
+import StatusBadge from "../components/common/StatusBadge";
+import "./Dashboard.css";
 
-const ALERT_LIFETIME_MS = 3 * 60 * 60 * 1000;
-const EVENT_POLL_INTERVAL = 3000;
-const CAMERA_REFRESH_INTERVAL = 15000;
+export function Dashboard({ onNavigateToCameras, cameras: propCameras, refreshCameras: propRefreshCameras }) {
+  const system = useSystem();
+  const cameras = propCameras || system.cameras || [];
+  const refreshCameras = propRefreshCameras || system.refreshCameras;
+  const {
+    camerasLoading,
+    backendStatus,
+    activeWorkers,
+    activeAlertsCount,
+  } = system;
 
-// ============================================================
-// HELPERS
-// ============================================================
-
-const normalizeObject = (value) => {
-  return String(value || "unknown")
-    .toLowerCase()
-    .trim();
-};
-
-const isHuman = (type) => {
-  return normalizeObject(type) === "person";
-};
-
-const isVehicle = (type) => {
-  return [
-    "car",
-    "truck",
-    "bus",
-    "motorcycle",
-    "bicycle",
-    "vehicle",
-  ].includes(normalizeObject(type));
-};
-
-const capitalize = (value) => {
-  const text = String(value || "unknown");
-
-  return text.charAt(0).toUpperCase() + text.slice(1);
-};
-
-const getEventTime = (event) => {
-  const value =
-    event?.timestamp ||
-    event?.first_seen ||
-    event?.last_seen;
-
-  if (!value) {
-    return 0;
-  }
-
-  const time = new Date(value).getTime();
-
-  return Number.isNaN(time) ? 0 : time;
-};
-
-const formatTime = (value) => {
-  if (!value) {
-    return "--:--:--";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "--:--:--";
-  }
-
-  return date.toLocaleTimeString();
-};
-
-const formatDateTime = (value) => {
-  if (!value) {
-    return "--";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "--";
-  }
-
-  return date.toLocaleString();
-};
-
-const getAlertTitle = (event) => {
-  const type = normalizeObject(event?.object_type);
-
-  if (isHuman(type)) {
-    return "HUMAN DETECTED";
-  }
-
-  if (isVehicle(type)) {
-    return "VEHICLE DETECTED";
-  }
-
-  return "OBJECT DETECTED";
-};
-
-const getAlertDescription = (event) => {
-  const type = normalizeObject(event?.object_type);
-
-  const location =
-    event?.location || "Unknown location";
-
-  if (isHuman(type)) {
-    return `Human detected near ${location}.`;
-  }
-
-  return `${capitalize(type)} detected near ${location}.`;
-};
-
-const getAlertIcon = (event) => {
-  const type = normalizeObject(event?.object_type);
-
-  if (isHuman(type)) {
-    return "●";
-  }
-
-  if (isVehicle(type)) {
-    return "▣";
-  }
-
-  return "◆";
-};
-
-const getSeverity = (event) => {
-  const type = normalizeObject(event?.object_type);
-
-  if (isHuman(type)) {
-    return "HIGH";
-  }
-
-  if (isVehicle(type)) {
-    return "MEDIUM";
-  }
-
-  return "LOW";
-};
-
-const isStartedEvent = (event) => {
-  return (
-    event?.type === "EVENT_STARTED" ||
-    event?.status === "ACTIVE"
-  );
-};
-
-const getConfidence = (event) => {
-  if (event?.confidence == null) {
-    return "--";
-  }
-
-  const confidence = Number(event.confidence);
-
-  if (Number.isNaN(confidence)) {
-    return "--";
-  }
-
-  const percentage =
-    confidence <= 1
-      ? confidence * 100
-      : confidence;
-
-  return `${percentage.toFixed(0)}%`;
-};
-
-const getCameraId = (camera) => {
-  return camera?.id ?? camera?.camera_id;
-};
-
-// ============================================================
-// DASHBOARD
-// ============================================================
-
-function Dashboard({
-  cameras = [],
-  refreshCameras,
-}) {
-  // ============================================================
-  // STATE
-  // ============================================================
-
-  const [events, setEvents] = useState([]);
-
-  const [loadingEvents, setLoadingEvents] =
-    useState(false);
-
-  const [selectedAlert, setSelectedAlert] =
-    useState(null);
-
-  const [summaryRange, setSummaryRange] =
-    useState(3);
-
-  const [currentTime, setCurrentTime] =
-    useState(Date.now());
-
-  const [lastRefresh, setLastRefresh] =
-    useState(null);
-
-  const [backendOnline, setBackendOnline] =
-    useState(true);
-
-  const [streamErrors, setStreamErrors] =
-    useState({});
-
-  const [streamLoading, setStreamLoading] =
-    useState({});
-
-  const [aiStarting, setAiStarting] =
-    useState({});
-
-  const [aiStarted, setAiStarted] =
-    useState({});
-
-  const [refreshing, setRefreshing] =
-    useState(false);
+  // Local state for camera events and telemetry
+  const [cameraEvents, setCameraEvents] = useState({}); // { [cameraId]: [events] }
+  const [cameraStatusMap, setCameraStatusMap] = useState({}); // { [cameraId]: aiStatus }
+  const [selectedCameraForModal, setSelectedCameraForModal] = useState(null);
+  const [selectedAlertForModal, setSelectedAlertForModal] = useState(null);
 
   // ============================================================
-  // NORMALIZED CAMERAS
+  // POLL TELEMETRY & EVENTS FOR ALL CAMERAS
   // ============================================================
+  const pollSurveillanceData = useCallback(async () => {
+    if (!cameras || cameras.length === 0) return;
 
-  const safeCameras = useMemo(() => {
-    return Array.isArray(cameras)
-      ? cameras.filter(Boolean)
-      : [];
+    for (const cam of cameras) {
+      const camId = cam.id;
+
+      // 1. Fetch AI Status
+      try {
+        const status = await aiApi.getCameraStatus(camId);
+        setCameraStatusMap((prev) => ({ ...prev, [camId]: status }));
+      } catch {
+        // AI worker might not be started
+      }
+
+      // 2. Fetch Recent Events
+      try {
+        const res = await aiApi.getCameraEvents(camId);
+        const events = Array.isArray(res?.events) ? res.events : [];
+        setCameraEvents((prev) => ({ ...prev, [camId]: events }));
+      } catch {
+        // Silently catch
+      }
+    }
   }, [cameras]);
 
+  useEffect(() => {
+    pollSurveillanceData();
+    const interval = setInterval(pollSurveillanceData, 3500);
+    return () => clearInterval(interval);
+  }, [pollSurveillanceData]);
+
+  // Update AI status locally when user clicks Start/Stop
+  const handleCameraStatusChange = (camId, isRunning) => {
+    setCameraStatusMap((prev) => ({
+      ...prev,
+      [camId]: { ...prev[camId], running: isRunning },
+    }));
+    pollSurveillanceData();
+  };
+
   // ============================================================
-  // FETCH EVENTS
+  // DERIVE METRICS & AGGREGATE STATS
   // ============================================================
+  const { activeFeedsCount, totalDetections, personsCount, vehiclesCount, aggregatedAlerts } =
+    useMemo(() => {
+      let activeFeeds = 0;
+      let detections = 0;
+      let persons = 0;
+      let vehicles = 0;
+      const alertsList = [];
 
-  const fetchEvents = useCallback(async () => {
-    if (safeCameras.length === 0) {
-      setEvents([]);
-      setBackendOnline(true);
-      return;
-    }
+      // Loop through cameras and their status
+      cameras.forEach((cam) => {
+        const status = cameraStatusMap[cam.id] || activeWorkers[cam.id];
+        if (status?.running) activeFeeds++;
+        if (status?.total_detections) detections += Number(status.total_detections);
 
-    try {
-      setLoadingEvents(true);
-
-      const results = await Promise.all(
-        safeCameras.map(async (camera) => {
-          const cameraId = getCameraId(camera);
-
-          if (cameraId == null) {
-            return [];
+        // Analyze events for this camera
+        const events = cameraEvents[cam.id] || [];
+        events.forEach((ev) => {
+          const objType = String(ev.object_type || "").toLowerCase().trim();
+          if (["person", "human"].includes(objType)) {
+            persons++;
+          } else if (["car", "truck", "bus", "motorcycle", "vehicle"].includes(objType)) {
+            vehicles++;
           }
 
-          try {
-            const response = await fetch(
-              `${API_BASE}/api/cameras/${cameraId}/events`
-            );
+          // Build threat alert entry
+          const severity =
+            ["person", "human"].includes(objType)
+              ? "HIGH"
+              : ["car", "truck"].includes(objType)
+              ? "MEDIUM"
+              : "LOW";
 
-            if (!response.ok) {
-              return [];
-            }
-
-            const data = await response.json();
-
-            const cameraEvents =
-              Array.isArray(data?.events)
-                ? data.events
-                : Array.isArray(data)
-                ? data
-                : [];
-
-            return cameraEvents.map((event) => ({
-              ...event,
-
-              camera_id:
-                event?.camera_id ?? cameraId,
-
-              camera_name:
-                event?.camera_name ||
-                camera?.name ||
-                `Camera ${cameraId}`,
-
-              location:
-                event?.location ||
-                camera?.location ||
-                "Unknown location",
-            }));
-          } catch (error) {
-            console.error(
-              `Event API error for camera ${cameraId}:`,
-              error
-            );
-
-            return [];
-          }
-        })
-      );
-
-      const combined = results
-        .flat()
-        .filter(Boolean);
-
-      combined.sort(
-        (a, b) =>
-          getEventTime(b) -
-          getEventTime(a)
-      );
-
-      setEvents(combined);
-      setBackendOnline(true);
-      setLastRefresh(Date.now());
-    } catch (error) {
-      console.error(
-        "Dashboard event fetch failed:",
-        error
-      );
-
-      setBackendOnline(false);
-    } finally {
-      setLoadingEvents(false);
-    }
-  }, [safeCameras]);
-
-  // ============================================================
-  // EVENT POLLING
-  // ============================================================
-
-  useEffect(() => {
-    fetchEvents();
-
-    const interval = setInterval(
-      fetchEvents,
-      EVENT_POLL_INTERVAL
-    );
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchEvents]);
-
-  // ============================================================
-  // CLOCK
-  // ============================================================
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-
-  // ============================================================
-  // CLOSE MODAL WITH ESC
-  // ============================================================
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setSelectedAlert(null);
-      }
-    };
-
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
-
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-    };
-  }, []);
-
-  // ============================================================
-  // START AI
-  // ============================================================
-
-  const startAI = useCallback(
-    async (camera) => {
-      const cameraId = getCameraId(camera);
-
-      if (cameraId == null) {
-        return;
-      }
-
-      if (
-        aiStarting[cameraId] ||
-        aiStarted[cameraId]
-      ) {
-        return;
-      }
-
-      try {
-        setAiStarting((previous) => ({
-          ...previous,
-          [cameraId]: true,
-        }));
-
-        const response = await fetch(
-          `${API_BASE}/api/cameras/${cameraId}/ai/start`,
-          {
-            method: "POST",
-          }
-        );
-
-        let data = {};
-
-        try {
-          data = await response.json();
-        } catch {
-          data = {};
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            data?.detail ||
-              data?.message ||
-              "Failed to start AI"
-          );
-        }
-
-        setAiStarted((previous) => ({
-          ...previous,
-          [cameraId]: true,
-        }));
-
-        setBackendOnline(true);
-
-        console.log(
-          `AI started for ${camera?.name || cameraId}`,
-          data
-        );
-      } catch (error) {
-        console.error(
-          `AI start error for camera ${cameraId}:`,
-          error
-        );
-
-        setBackendOnline(false);
-      } finally {
-        setAiStarting((previous) => ({
-          ...previous,
-          [cameraId]: false,
-        }));
-      }
-    },
-    [aiStarting, aiStarted]
-  );
-
-  // ============================================================
-  // AUTO START AI
-  // ============================================================
-
-  useEffect(() => {
-    safeCameras
-      .filter(
-        (camera) => camera?.is_active
-      )
-      .forEach((camera) => {
-        startAI(camera);
+          alertsList.push({
+            id: `${cam.id}-${ev.track_id || ev.id || Math.random()}`,
+            camera_id: cam.id,
+            camera_name: cam.name,
+            location: cam.location,
+            object_type: objType || "Object",
+            title: `${(objType || "OBJECT").toUpperCase()} DETECTED`,
+            severity,
+            confidence: ev.confidence,
+            timestamp: ev.timestamp || ev.first_seen || new Date().toISOString(),
+          });
+        });
       });
-  }, [safeCameras, startAI]);
 
-  // ============================================================
-  // ACTIVE CAMERAS
-  // ============================================================
+      // Sort alerts descending by timestamp
+      alertsList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-  const activeCameras = useMemo(() => {
-    return safeCameras.filter(
-      (camera) => camera?.is_active
-    ).length;
-  }, [safeCameras]);
-
-  // ============================================================
-  // ALERT EVENTS
-  // ============================================================
-
-  const alertEvents = useMemo(() => {
-    const cutoff =
-      currentTime - ALERT_LIFETIME_MS;
-
-    const startedEvents = events.filter(
-      (event) => {
-        const eventTime =
-          getEventTime(event);
-
-        if (!eventTime) {
-          return false;
-        }
-
-        if (eventTime < cutoff) {
-          return false;
-        }
-
-        return isStartedEvent(event);
-      }
-    );
-
-    // ----------------------------------------------------------
-    // Deduplicate:
-    // camera + object + track + 30 second bucket
-    // ----------------------------------------------------------
-
-    const unique = [];
-    const seen = new Set();
-
-    startedEvents.forEach((event) => {
-      const type = normalizeObject(
-        event?.object_type
-      );
-
-      const cameraId =
-        event?.camera_id ?? "unknown";
-
-      const trackId =
-        event?.track_id ?? "unknown";
-
-      const eventTime =
-        getEventTime(event);
-
-      const bucket = Math.floor(
-        eventTime / 30000
-      );
-
-      const key =
-        `${cameraId}-${type}-${trackId}-${bucket}`;
-
-      if (seen.has(key)) {
-        return;
-      }
-
-      seen.add(key);
-      unique.push(event);
-    });
-
-    unique.sort(
-      (a, b) =>
-        getEventTime(b) -
-        getEventTime(a)
-    );
-
-    return unique;
-  }, [events, currentTime]);
-
-  // ============================================================
-  // ACTIVE ALERT COUNT
-  // ============================================================
-
-  const activeAlerts =
-    alertEvents.length;
-
-  // ============================================================
-  // EVENTS TODAY
-  // ============================================================
-
-  const eventsToday = useMemo(() => {
-    const today = new Date();
-
-    return events.filter((event) => {
-      const eventTime =
-        getEventTime(event);
-
-      if (!eventTime) {
-        return false;
-      }
-
-      const date =
-        new Date(eventTime);
-
-      return (
-        date.getFullYear() ===
-          today.getFullYear() &&
-        date.getMonth() ===
-          today.getMonth() &&
-        date.getDate() ===
-          today.getDate()
-      );
-    });
-  }, [events]);
-
-  // ============================================================
-  // SUMMARY
-  // ============================================================
-
-  const summary = useMemo(() => {
-    const cutoff =
-      currentTime -
-      summaryRange *
-        60 *
-        60 *
-        1000;
-
-    const rangeEvents = events.filter(
-      (event) => {
-        const time =
-          getEventTime(event);
-
-        return (
-          time >= cutoff &&
-          time <= currentTime
-        );
-      }
-    );
-
-    const meaningful =
-      rangeEvents.filter(
-        isStartedEvent
-      );
-
-    let humans = 0;
-    let vehicles = 0;
-    let other = 0;
-
-    meaningful.forEach((event) => {
-      const type =
-        normalizeObject(
-          event?.object_type
-        );
-
-      if (isHuman(type)) {
-        humans++;
-      } else if (isVehicle(type)) {
-        vehicles++;
-      } else {
-        other++;
-      }
-    });
-
-    return {
-      total: meaningful.length,
-      humans,
-      vehicles,
-      other,
-    };
-  }, [
-    events,
-    summaryRange,
-    currentTime,
-  ]);
-
-  // ============================================================
-  // STREAM HANDLERS
-  // ============================================================
-
-  const handleStreamLoad = (cameraId) => {
-    setStreamLoading((previous) => ({
-      ...previous,
-      [cameraId]: false,
-    }));
-
-    setStreamErrors((previous) => {
-      const next = { ...previous };
-      delete next[cameraId];
-      return next;
-    });
-  };
-
-  const handleStreamError = (cameraId) => {
-    setStreamLoading((previous) => ({
-      ...previous,
-      [cameraId]: false,
-    }));
-
-    setStreamErrors((previous) => ({
-      ...previous,
-      [cameraId]: true,
-    }));
-  };
-
-  const handleStreamStart = (cameraId) => {
-    setStreamLoading((previous) => ({
-      ...previous,
-      [cameraId]: true,
-    }));
-  };
-
-  // ============================================================
-  // REFRESH
-  // ============================================================
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-
-      if (refreshCameras) {
-        await refreshCameras();
-      }
-
-      await fetchEvents();
-
-      setLastRefresh(Date.now());
-    } catch (error) {
-      console.error(
-        "Dashboard refresh error:",
-        error
-      );
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // ============================================================
-  // RENDER
-  // ============================================================
+      return {
+        activeFeedsCount: activeFeeds,
+        totalDetections: detections,
+        personsCount: persons,
+        vehiclesCount: vehicles,
+        aggregatedAlerts: alertsList.slice(0, 20), // Top 20 recent
+      };
+    }, [cameras, cameraStatusMap, activeWorkers, cameraEvents]);
 
   return (
-    <div className="dashboard-page">
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <div className="page-header">
+    <div className="command-center-container">
+      {/* 1. Header Section */}
+      <div className="command-header">
         <div>
-          <span className="section-label">
-            SURVEILLANCE OVERVIEW
-          </span>
-
-          <h2>
-            Command Center
-          </h2>
-
-          <p>
-            Real-time operational overview of
-            the AVEKSHA NETRA surveillance network.
+          <h1 className="command-title">COMMAND CENTER</h1>
+          <p className="command-subtitle">
+            Real-time AI surveillance overview & intelligent threat monitoring
           </p>
         </div>
 
-        <div className="mission-status">
-          <span
-            className="status-dot"
-            style={{
-              opacity: backendOnline ? 1 : 0.4,
-            }}
+        <div className="command-header-actions">
+          <StatusBadge
+            status={backendStatus}
+            label={backendStatus === SYSTEM_STATUS.ONLINE ? "BACKEND CONNECTED" : "BACKEND OFFLINE"}
+            showDot={true}
+            pulse={backendStatus === SYSTEM_STATUS.ONLINE}
           />
-
-          {backendOnline
-            ? "ALL SYSTEMS NOMINAL"
-            : "BACKEND CONNECTION LOST"}
+          <button onClick={refreshCameras} className="btn btn-secondary btn-sm" title="Refresh Cameras">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            REFRESH
+          </button>
         </div>
       </div>
 
-      {/* ======================================================
-          STAT CARDS
-      ====================================================== */}
-
-      <section className="dashboard-stats">
-
-        {/* CAMERAS */}
-
-        <div className="dashboard-stat">
-          <div>
-            <span>CAMERAS</span>
-
-            <strong>
-              {safeCameras.length}
-            </strong>
-          </div>
-
-          <div className="stat-icon">
-            ▣
-          </div>
-        </div>
-
-        {/* ACTIVE FEEDS */}
-
-        <div className="dashboard-stat">
-          <div>
-            <span>ACTIVE FEEDS</span>
-
-            <strong>
-              {activeCameras}
-            </strong>
-          </div>
-
-          <div className="stat-icon">
-            ◉
-          </div>
-        </div>
-
-        {/* ACTIVE ALERTS */}
-
-        <div
-          className={
-            `dashboard-stat ${
-              activeAlerts > 0
-                ? "alert-stat"
-                : ""
-            }`
+      {/* 2. Tactical KPI Metric Cards */}
+      <div className="kpi-grid">
+        <StatCard
+          label="MONITORED CAMERAS"
+          value={cameras.length}
+          subtext="IP CCTV & FILE SOURCES"
+          code="SURV-01"
+          tone="info"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
           }
-        >
-          <div>
-            <span>ACTIVE ALERTS</span>
-
-            <strong>
-              {activeAlerts}
-            </strong>
-          </div>
-
-          <div className="stat-icon">
-            △
-          </div>
-        </div>
-
-        {/* EVENTS TODAY */}
-
-        <div className="dashboard-stat">
-          <div>
-            <span>EVENTS TODAY</span>
-
-            <strong>
-              {eventsToday.length}
-            </strong>
-          </div>
-
-          <div className="stat-icon">
-            ≡
-          </div>
-        </div>
-
-      </section>
-
-      {/* ======================================================
-          LIVE SURVEILLANCE
-      ====================================================== */}
-
-      <section className="dashboard-section">
-
-        <div className="section-heading">
-
-          <div>
-            <span className="section-label">
-              LIVE SURVEILLANCE
-            </span>
-
-            <h3>
-              Camera Network
-            </h3>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              alignItems: "center",
-            }}
-          >
-            <button
-              onClick={handleRefresh}
-              className="camera-edit-button"
-              disabled={refreshing}
-            >
-              {refreshing
-                ? "REFRESHING..."
-                : "REFRESH"}
-            </button>
-
-            <span className="feed-count">
-              {safeCameras.length} SOURCES
-            </span>
-          </div>
-
-        </div>
-
-        <div className="dashboard-camera-grid">
-
-          {safeCameras.length === 0 ? (
-
-            <div className="no-camera">
-              No surveillance sources connected.
-            </div>
-
-          ) : (
-
-            safeCameras.map((camera) => {
-              const cameraId =
-                getCameraId(camera);
-
-              const hasStreamError =
-                streamErrors[cameraId];
-
-              const isLoading =
-                streamLoading[cameraId];
-
-              return (
-                <div
-                  className="dashboard-camera"
-                  key={cameraId}
-                >
-
-                  {/* CAMERA HEADER */}
-
-                  <div className="feed-header">
-
-                    <span>
-                      CAM-
-                      {String(cameraId).padStart(
-                        3,
-                        "0"
-                      )}
-                    </span>
-
-                    <span className="feed-live">
-                      <i />
-                      {camera?.is_active
-                        ? "LIVE"
-                        : "OFFLINE"}
-                    </span>
-
-                  </div>
-
-                  {/* VIDEO */}
-
-                  <div className="feed-area">
-
-                    {!camera?.is_active ? (
-
-                      <div className="feed-placeholder">
-
-                        <div className="camera-crosshair">
-                          ⊕
-                        </div>
-
-                        <span>
-                          CAMERA OFFLINE
-                        </span>
-
-                        <small>
-                          Stream unavailable
-                        </small>
-
-                      </div>
-
-                    ) : hasStreamError ? (
-
-                      <div className="feed-placeholder">
-
-                        <div className="camera-crosshair">
-                          !
-                        </div>
-
-                        <span>
-                          STREAM ERROR
-                        </span>
-
-                        <small>
-                          AI stream unavailable
-                        </small>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStreamErrors(
-                              (previous) => ({
-                                ...previous,
-                                [cameraId]: false,
-                              })
-                            );
-
-                            setStreamLoading(
-                              (previous) => ({
-                                ...previous,
-                                [cameraId]: true,
-                              })
-                            );
-                          }}
-                          style={{
-                            marginTop: "10px",
-                            padding: "7px 12px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          RETRY
-                        </button>
-
-                      </div>
-
-                    ) : (
-
-                      <>
-                        {isLoading && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              zIndex: 2,
-                              pointerEvents: "none",
-                              background:
-                                "rgba(0,0,0,0.25)",
-                            }}
-                          >
-                            CONNECTING...
-                          </div>
-                        )}
-
-                        <img
-                          src={`${API_BASE}/api/cameras/${cameraId}/ai-stream`}
-                          alt={`${camera?.name || "Camera"} AI surveillance feed`}
-                          className="live-feed"
-                          onLoad={() =>
-                            handleStreamLoad(
-                              cameraId
-                            )
-                          }
-                          onError={() =>
-                            handleStreamError(
-                              cameraId
-                            )
-                          }
-                          onLoadStart={() =>
-                            handleStreamStart(
-                              cameraId
-                            )
-                          }
-                        />
-                      </>
-
-                    )}
-
-                  </div>
-
-                  {/* CAMERA FOOTER */}
-
-                  <div className="feed-footer">
-
-                    <div>
-                      <strong>
-                        {camera?.name ||
-                          `Camera ${cameraId}`}
-                      </strong>
-
-                      <span>
-                        {camera?.location ||
-                          "Unknown location"}
-                      </span>
-                    </div>
-
-                    <div className="camera-actions">
-
-                      <span
-                        className={
-                          camera?.is_active
-                            ? "feed-status active"
-                            : "feed-status"
-                        }
-                      >
-                        {camera?.is_active
-                          ? "ACTIVE"
-                          : "OFFLINE"}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              );
-            })
-          )}
-
-        </div>
-      </section>
-
-      {/* ======================================================
-          ALERT TICKETS
-      ====================================================== */}
-
-      <section className="dashboard-section">
-
-        <div className="section-heading">
-
-          <div>
-            <span className="section-label">
-              THREAT MONITOR
-            </span>
-
-            <h3>
-              Active Alerts
-            </h3>
-          </div>
-
-          <div>
-            <span className="feed-count">
-              AUTO-CLEAR: 3 HOURS
-            </span>
-          </div>
-
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gap: "12px",
-          }}
-        >
-
-          {loadingEvents &&
-          alertEvents.length === 0 ? (
-
-            <div className="empty-events">
-
-              <div className="event-icon">
-                ◌
-              </div>
-
-              <strong>
-                Loading alerts...
-              </strong>
-
-              <span>
-                Connecting to AI alert service.
-              </span>
-
-            </div>
-
-          ) : alertEvents.length === 0 ? (
-
-            <div className="empty-events">
-
-              <div className="event-icon">
-                ✓
-              </div>
-
-              <strong>
-                No active alerts
-              </strong>
-
-              <span>
-                The surveillance network is operating normally.
-              </span>
-
-            </div>
-
-          ) : (
-
-            alertEvents
-              .slice(0, 10)
-              .map((alert, index) => (
-
-                <button
-                  type="button"
-                  key={
-                    `${alert?.camera_id || "camera"}-${
-                      alert?.id || "event"
-                    }-${index}`
-                  }
-                  onClick={() =>
-                    setSelectedAlert(alert)
-                  }
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    border:
-                      "1px solid rgba(255,255,255,0.08)",
-                    background:
-                      "rgba(255,255,255,0.025)",
-                    padding: "18px",
-                    borderRadius: "10px",
-                    display: "grid",
-                    gridTemplateColumns:
-                      "50px 1fr auto",
-                    gap: "16px",
-                    alignItems: "center",
-                    color: "inherit",
-                  }}
-                >
-
-                  {/* ICON */}
-
-                  <div
-                    style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "18px",
-                      border:
-                        "1px solid rgba(255,255,255,0.15)",
-                    }}
-                  >
-                    {getAlertIcon(alert)}
-                  </div>
-
-                  {/* MAIN */}
-
-                  <div>
-
-                    <strong
-                      style={{
-                        display: "block",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {getAlertTitle(alert)}
-                    </strong>
-
-                    <span
-                      style={{
-                        display: "block",
-                        opacity: 0.75,
-                        fontSize: "13px",
-                      }}
-                    >
-                      CAM-
-                      {String(
-                        alert?.camera_id ?? "--"
-                      ).padStart(3, "0")}
-
-                      {" • "}
-
-                      {alert?.camera_name ||
-                        "Unknown camera"}
-                    </span>
-
-                    <small
-                      style={{
-                        display: "block",
-                        marginTop: "4px",
-                        opacity: 0.55,
-                      }}
-                    >
-                      {getAlertDescription(alert)}
-                    </small>
-
-                  </div>
-
-                  {/* META */}
-
-                  <div
-                    style={{
-                      textAlign: "right",
-                      display: "grid",
-                      gap: "5px",
-                    }}
-                  >
-
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {getSeverity(alert)}
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        opacity: 0.7,
-                      }}
-                    >
-                      {formatTime(
-                        alert?.timestamp ||
-                          alert?.first_seen
-                      )}
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        opacity: 0.5,
-                      }}
-                    >
-                      CLICK FOR DETAILS
-                    </span>
-
-                  </div>
-
-                </button>
-              ))
-          )}
-
-        </div>
-      </section>
-
-      {/* ======================================================
-          ALERT DETAIL MODAL
-      ====================================================== */}
-
-      {selectedAlert && (
-
-        <div
-          onClick={() =>
-            setSelectedAlert(null)
+        />
+
+        <StatCard
+          label="AI ACTIVE FEEDS"
+          value={activeFeedsCount}
+          subtext="YOLO11 PIPELINE ONLINE"
+          code="YOLO-02"
+          tone={activeFeedsCount > 0 ? "online" : "default"}
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
           }
-          style={{
-            position: "fixed",
-            inset: 0,
-            background:
-              "rgba(0,0,0,0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "20px",
-          }}
-        >
+        />
 
-          <div
-            onClick={(event) =>
-              event.stopPropagation()
-            }
-            style={{
-              width: "min(650px, 100%)",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              border:
-                "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "14px",
-              background: "#11151a",
-              padding: "28px",
-              boxShadow:
-                "0 20px 70px rgba(0,0,0,0.5)",
-            }}
-          >
+        <StatCard
+          label="ACTIVE THREAT ALERTS"
+          value={activeAlertsCount || aggregatedAlerts.length}
+          subtext="HIGH & MEDIUM PRIORITY"
+          code="ALRT-03"
+          tone={aggregatedAlerts.length > 0 ? "threat" : "default"}
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          }
+        />
 
-            {/* HEADER */}
+        <StatCard
+          label="TOTAL DETECTIONS"
+          value={totalDetections > 0 ? totalDetections : "--"}
+          subtext="AI FRAMES PROCESSED"
+          code="DET-04"
+          tone="default"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          }
+        />
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "flex-start",
-                gap: "20px",
-              }}
-            >
+        <StatCard
+          label="PERSONS DETECTED"
+          value={personsCount}
+          subtext="CLASSIFIED BY YOLO"
+          code="OBJ-HUMAN"
+          tone={personsCount > 0 ? "online" : "default"}
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          }
+        />
 
-              <div>
+        <StatCard
+          label="VEHICLES DETECTED"
+          value={vehiclesCount}
+          subtext="CARS / MOTORCYCLES"
+          code="OBJ-VEHICLE"
+          tone={vehiclesCount > 0 ? "warning" : "default"}
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="1" y="3" width="22" height="13" rx="2"></rect>
+              <path d="M16 8h2"></path>
+              <path d="M6 8h2"></path>
+              <path d="M2 13h20"></path>
+              <circle cx="7" cy="18" r="2"></circle>
+              <circle cx="17" cy="18" r="2"></circle>
+            </svg>
+          }
+        />
+      </div>
 
-                <span className="section-label">
-                  ALERT DETAILS
+      {/* 3. Main Command Grid: Cameras (Left) + Threat Feed (Right) */}
+      <div className="surveillance-workspace">
+        {/* Left: Surveillance Camera Grid */}
+        <div className="camera-section">
+          <div className="section-header-bar">
+            <div className="section-header-title">
+              <span className="section-dot"></span>
+              <h2>LIVE SURVEILLANCE CAMERAS</h2>
+              <span className="section-count-badge tech-value">
+                {cameras.length} UNITS
+              </span>
+            </div>
+
+            <div className="section-header-legend">
+              <span className="legend-item">
+                <span className="status-dot online pulse"></span> AI ACTIVE
+              </span>
+              <span className="legend-item">
+                <span className="status-dot offline"></span> STANDBY
+              </span>
+            </div>
+          </div>
+
+          {camerasLoading ? (
+            <div className="cameras-loading-state">
+              <div className="feed-radar-spinner"></div>
+              <p>INITIALIZING SURVEILLANCE MATRIX...</p>
+            </div>
+          ) : cameras.length === 0 ? (
+            <EmptyState
+              title="NO SURVEILLANCE CAMERAS CONFIGURED"
+              subtitle="Connect an IP CCTV RTSP URL or add the demo file camera to begin AI surveillance."
+              actionLabel="Configure Cameras"
+              onAction={onNavigateToCameras}
+            />
+          ) : (
+            <div className="cameras-matrix-grid">
+              {cameras.map((camera) => (
+                <CameraCard
+                  key={camera.id}
+                  camera={camera}
+                  aiStatus={cameraStatusMap[camera.id] || activeWorkers[camera.id]}
+                  onStatusChange={handleCameraStatusChange}
+                  onOpenDetails={(cam) => setSelectedCameraForModal(cam)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Live Threat Alerts Feed */}
+        <div className="threat-feed-section">
+          <div className="section-header-bar">
+            <div className="section-header-title">
+              <span className="status-dot threat pulse"></span>
+              <h2>LIVE THREAT FEED</h2>
+              {aggregatedAlerts.length > 0 && (
+                <span className="badge-threat-count tech-value">
+                  {aggregatedAlerts.length}
                 </span>
+              )}
+            </div>
+          </div>
 
-                <h2
-                  style={{
-                    marginTop: "8px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {getAlertTitle(
-                    selectedAlert
-                  )}
-                </h2>
-
-                <p
-                  style={{
-                    margin: 0,
-                    opacity: 0.7,
-                  }}
-                >
-                  AI-generated surveillance alert
-                </p>
-
+          <div className="threat-feed-list">
+            {aggregatedAlerts.length === 0 ? (
+              <div className="empty-threat-feed">
+                <div className="shield-icon">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                  </svg>
+                </div>
+                <div className="empty-feed-title">ALL SECTORS SECURE</div>
+                <div className="empty-feed-subtext">
+                  AI threat detection engine active. No unauthorized intrusions or suspicious targets.
+                </div>
               </div>
+            ) : (
+              aggregatedAlerts.map((alert) => (
+                <AlertCard
+                  key={alert.id}
+                  alert={alert}
+                  onSelect={(a) => setSelectedAlertForModal(a)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedAlert(null)
-                }
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "inherit",
-                  fontSize: "22px",
-                  cursor: "pointer",
-                }}
-                aria-label="Close alert"
-              >
-                ×
+      {/* 4. Diagnostics Modal (Camera Details) */}
+      {selectedCameraForModal && (
+        <div className="tactical-modal-backdrop" onClick={() => setSelectedCameraForModal(null)}>
+          <div className="tactical-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                CAMERA DIAGNOSTICS // CAM-{String(selectedCameraForModal.id).padStart(3, "0")}
+              </div>
+              <button onClick={() => setSelectedCameraForModal(null)} className="btn-modal-close">
+                ✕
               </button>
-
             </div>
-
-            {/* DESCRIPTION */}
-
-            <div
-              style={{
-                marginTop: "24px",
-                padding: "18px",
-                borderRadius: "10px",
-                background:
-                  "rgba(255,255,255,0.04)",
-              }}
-            >
-              <strong>
-                {getAlertDescription(
-                  selectedAlert
-                )}
-              </strong>
+            <div className="modal-body">
+              <div className="modal-info-row">
+                <span>CAMERA NAME:</span>
+                <strong>{selectedCameraForModal.name}</strong>
+              </div>
+              <div className="modal-info-row">
+                <span>LOCATION:</span>
+                <strong>{selectedCameraForModal.location}</strong>
+              </div>
+              <div className="modal-info-row">
+                <span>SOURCE TYPE:</span>
+                <strong className="tech-value">{selectedCameraForModal.source_type}</strong>
+              </div>
+              <div className="modal-info-row">
+                <span>RTSP / SOURCE URL:</span>
+                <strong className="tech-value url-text">{selectedCameraForModal.rtsp_url}</strong>
+              </div>
+              <div className="modal-info-row">
+                <span>AI STATUS:</span>
+                <StatusBadge
+                  status={cameraStatusMap[selectedCameraForModal.id]?.running ? "ONLINE" : "STANDBY"}
+                  size="sm"
+                />
+              </div>
+              <div className="modal-info-row">
+                <span>FRAMES PROCESSED:</span>
+                <strong className="tech-value">
+                  {cameraStatusMap[selectedCameraForModal.id]?.frame_count || "--"}
+                </strong>
+              </div>
+              <div className="modal-info-row">
+                <span>TOTAL DETECTIONS:</span>
+                <strong className="tech-value">
+                  {cameraStatusMap[selectedCameraForModal.id]?.total_detections || "--"}
+                </strong>
+              </div>
             </div>
-
-            {/* DETAILS */}
-
-            <div
-              style={{
-                marginTop: "20px",
-                display: "grid",
-                gap: "12px",
-              }}
-            >
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>OBJECT</span>
-
-                <strong>
-                  {capitalize(
-                    selectedAlert?.object_type
-                  )}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>CAMERA</span>
-
-                <strong>
-                  CAM-
-                  {String(
-                    selectedAlert?.camera_id ??
-                      "--"
-                  ).padStart(3, "0")}
-
-                  {" • "}
-
-                  {selectedAlert?.camera_name ||
-                    "Unknown camera"}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>LOCATION</span>
-
-                <strong>
-                  {selectedAlert?.location ||
-                    "Unknown"}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>TRACK ID</span>
-
-                <strong>
-                  #
-                  {selectedAlert?.track_id ??
-                    "--"}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>CONFIDENCE</span>
-
-                <strong>
-                  {getConfidence(
-                    selectedAlert
-                  )}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>DETECTED AT</span>
-
-                <strong>
-                  {formatDateTime(
-                    selectedAlert?.timestamp ||
-                      selectedAlert?.first_seen
-                  )}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>SEVERITY</span>
-
-                <strong>
-                  {getSeverity(
-                    selectedAlert
-                  )}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>STATUS</span>
-
-                <strong>
-                  {selectedAlert?.status ||
-                    "ACTIVE"}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: "20px",
-                }}
-              >
-                <span>AUTO CLEAR</span>
-
-                <strong>
-                  3 HOURS
-                </strong>
-              </div>
-
+            <div className="modal-footer">
+              <button onClick={() => setSelectedCameraForModal(null)} className="btn btn-secondary btn-sm">
+                CLOSE
+              </button>
             </div>
-
-            {/* CLOSE */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setSelectedAlert(null)
-              }
-              style={{
-                marginTop: "26px",
-                width: "100%",
-                padding: "12px",
-                cursor: "pointer",
-                borderRadius: "8px",
-                border:
-                  "1px solid rgba(255,255,255,0.15)",
-                background:
-                  "rgba(255,255,255,0.05)",
-                color: "inherit",
-                fontWeight: 700,
-              }}
-            >
-              CLOSE ALERT
-            </button>
-
           </div>
         </div>
       )}
-
-      {/* ======================================================
-          LOWER DASHBOARD
-      ====================================================== */}
-
-      <section className="dashboard-lower">
-
-        {/* ====================================================
-            EVENT MONITOR
-        ==================================================== */}
-
-        <div className="panel">
-
-          <div className="panel-header">
-
-            <div>
-
-              <span className="section-label">
-                EVENT MONITOR
-              </span>
-
-              <h3>
-                Recent Events
-              </h3>
-
-            </div>
-
-            <span className="panel-count">
-              {events.length} EVENTS
-            </span>
-
-          </div>
-
-          <div className="events-list">
-
-            {events.length === 0 ? (
-
-              <div className="empty-events">
-
-                <div className="event-icon">
-                  ≡
-                </div>
-
-                <strong>
-                  No events recorded
-                </strong>
-
-                <span>
-                  Detection events will appear here.
-                </span>
-
-              </div>
-
-            ) : (
-
-              events
-                .slice(0, 12)
-                .map((event, index) => (
-
-                  <div
-                    className="event-row"
-                    key={
-                      `${event?.camera_id || "camera"}-${
-                        event?.id || "event"
-                      }-${index}`
-                    }
-                  >
-
-                    <div className="event-icon-small">
-                      {getAlertIcon(event)}
-                    </div>
-
-                    <div className="event-main">
-
-                      <strong>
-                        {String(
-                          event?.object_type ||
-                            "UNKNOWN"
-                        ).toUpperCase()}
-                      </strong>
-
-                      <span>
-                        CAM-
-                        {String(
-                          event?.camera_id ??
-                            "--"
-                        ).padStart(3, "0")}
-
-                        {" • "}
-
-                        {event?.camera_name ||
-                          "Unknown camera"}
-                      </span>
-
-                      <small>
-                        {event?.location ||
-                          "Unknown location"}
-                      </small>
-
-                    </div>
-
-                    <div className="event-meta">
-
-                      <span
-                        className={
-                          isStartedEvent(event)
-                            ? "event-active"
-                            : "event-ended"
-                        }
-                      >
-                        {event?.status ||
-                          event?.type ||
-                          "EVENT"}
-                      </span>
-
-                      <span>
-                        TRACK #
-                        {event?.track_id ??
-                          "--"}
-                      </span>
-
-                      <span>
-                        {getConfidence(event)}
-                      </span>
-
-                      <span>
-                        {formatTime(
-                          event?.timestamp ||
-                            event?.first_seen
-                        )}
-                      </span>
-
-                    </div>
-
-                  </div>
-                ))
-            )}
-
-          </div>
-        </div>
-
-        {/* ====================================================
-            ALERT STATUS + SUMMARY
-        ==================================================== */}
-
-        <div className="panel">
-
-          <div className="panel-header">
-
-            <div>
-
-              <span className="section-label">
-                THREAT MONITOR
-              </span>
-
-              <h3>
-                Alert Status
-              </h3>
-
-            </div>
-
-            <span
-              className={
-                activeAlerts > 0
-                  ? "secure-badge alert-badge"
-                  : "secure-badge"
-              }
-            >
-              {activeAlerts > 0
-                ? "ATTENTION"
-                : "SECURE"}
-            </span>
-
-          </div>
-
-          {/* THREAT STATUS */}
-
-          <div className="threat-status">
-
-            <div
-              className={
-                activeAlerts > 0
-                  ? "threat-ring threat-active"
-                  : "threat-ring"
-              }
-            >
-              {activeAlerts > 0
-                ? "!"
-                : "✓"}
-            </div>
-
-            <strong>
-              {activeAlerts > 0
-                ? `${activeAlerts} Active Alert${
-                    activeAlerts > 1
-                      ? "s"
-                      : ""
-                  }`
-                : "No Active Threats"}
-            </strong>
-
-            <span>
-              {activeAlerts > 0
-                ? "AI detection events require attention."
-                : "Surveillance network is operating normally."}
-            </span>
-
-          </div>
-
-          {/* AI SUMMARY */}
-
-          <div
-            style={{
-              marginTop: "25px",
-            }}
-          >
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "center",
-                marginBottom: "14px",
-              }}
-            >
-
-              <strong>
-                AI ACTIVITY SUMMARY
-              </strong>
-
-              <select
-                value={summaryRange}
-                onChange={(event) =>
-                  setSummaryRange(
-                    Number(
-                      event.target.value
-                    )
-                  )
-                }
-                style={{
-                  padding: "7px 10px",
-                  borderRadius: "6px",
-                  background:
-                    "rgba(255,255,255,0.06)",
-                  color: "inherit",
-                  border:
-                    "1px solid rgba(255,255,255,0.15)",
-                }}
-              >
-
-                <option value={1}>
-                  LAST 1 HOUR
-                </option>
-
-                <option value={3}>
-                  LAST 3 HOURS
-                </option>
-
-                <option value={6}>
-                  LAST 6 HOURS
-                </option>
-
-                <option value={12}>
-                  LAST 12 HOURS
-                </option>
-
-                <option value={24}>
-                  LAST 24 HOURS
-                </option>
-
-              </select>
-
-            </div>
-
-            {/* TOTAL */}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                padding: "12px 0",
-                borderBottom:
-                  "1px solid rgba(255,255,255,0.07)",
-              }}
-            >
-              <span>
-                TOTAL ALERTS
-              </span>
-
-              <strong>
-                {summary.total}
-              </strong>
-            </div>
-
-            {/* HUMANS */}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                padding: "12px 0",
-                borderBottom:
-                  "1px solid rgba(255,255,255,0.07)",
-              }}
-            >
-              <span>
-                HUMANS DETECTED
-              </span>
-
-              <strong>
-                {summary.humans}
-              </strong>
-            </div>
-
-            {/* VEHICLES */}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                padding: "12px 0",
-                borderBottom:
-                  "1px solid rgba(255,255,255,0.07)",
-              }}
-            >
-              <span>
-                VEHICLES DETECTED
-              </span>
-
-              <strong>
-                {summary.vehicles}
-              </strong>
-            </div>
-
-            {/* OTHER */}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                padding: "12px 0",
-              }}
-            >
-              <span>
-                OTHER OBJECTS
-              </span>
-
-              <strong>
-                {summary.other}
-              </strong>
-            </div>
-
-          </div>
-
-          {/* LAST REFRESH */}
-
-          <div
-            style={{
-              marginTop: "18px",
-              fontSize: "11px",
-              opacity: 0.5,
-            }}
-          >
-            LAST UPDATED:{" "}
-            {lastRefresh
-              ? formatDateTime(lastRefresh)
-              : "WAITING..."}
-          </div>
-
-        </div>
-      </section>
-
     </div>
   );
 }

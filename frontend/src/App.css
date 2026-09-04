@@ -275,10 +275,8 @@ nav {
 ================================================== */
 
 .main-area {
-  width: calc(100% - 245px);
-
-  margin-left: 245px;
-
+  width: calc(100% - 260px);
+  margin-left: 260px;
   min-height: 100vh;
 }
 

@@ -63,6 +63,9 @@ app.add_middleware(
 
         # Production frontend
         "https://avekshanetra.in",
+
+          # Cloudflare Tunnel
+    "https://reservations-antarctica-tube-pursuant.trycloudflare.com",
     ],
 
     allow_credentials=True,

@@ -1,421 +1,443 @@
-/* ==================================================
-   AVEKSHA NETRA
-   GLOBAL STYLES
-   ================================================== */
+/* ============================================================
+   AVEKSHA NETRA — TACTICAL COMMAND CENTER DESIGN SYSTEM
+   Military / SOC / Intelligence Surveillance Styling
+   ============================================================ */
 
 :root {
-  font-family:
-    Inter,
-    "Segoe UI",
-    Arial,
-    Helvetica,
-    sans-serif;
+  /* Surface & Canvas Tokens */
+  --bg-base: #06090e;
+  --bg-surface: #0b1118;
+  --bg-card: #0e1520;
+  --bg-card-hover: #121c2a;
+  --bg-panel: #0a0f16;
+  --bg-glass: rgba(11, 17, 24, 0.85);
+  --bg-input: #080d13;
 
-  color: #d7ddc8;
+  /* Tactical Borders */
+  --border-subtle: #141e2b;
+  --border-default: #1b2838;
+  --border-hover: #2a3e56;
+  --border-focus: #06b6d4;
 
-  background: #11150f;
+  /* Typography Colors */
+  --text-primary: #f0f4f8;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
 
-  font-synthesis: none;
+  /* Tactical Status & Threat Colors */
+  --color-online: #10b981;
+  --color-online-dim: rgba(16, 185, 129, 0.12);
+  --color-online-glow: rgba(16, 185, 129, 0.35);
 
-  text-rendering: optimizeLegibility;
+  --color-warning: #f59e0b;
+  --color-warning-dim: rgba(245, 158, 11, 0.12);
 
-  -webkit-font-smoothing: antialiased;
+  --color-threat: #ef4444;
+  --color-threat-dim: rgba(239, 68, 68, 0.15);
+  --color-threat-glow: rgba(239, 68, 68, 0.35);
 
-  -moz-osx-font-smoothing: grayscale;
+  --color-info: #06b6d4;
+  --color-info-dim: rgba(6, 182, 212, 0.12);
+
+  --color-offline: #64748b;
+  --color-offline-dim: rgba(100, 116, 139, 0.15);
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Radii */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 20px 40px -4px rgba(0, 0, 0, 0.8), 0 8px 16px -2px rgba(0, 0, 0, 0.6);
+  --shadow-glow-online: 0 0 16px rgba(16, 185, 129, 0.25);
+  --shadow-glow-threat: 0 0 16px rgba(239, 68, 68, 0.3);
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+  --transition-smooth: 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ============================================================
+   GLOBAL RESET & BASE
+   ============================================================ */
 
-/* ==================================================
-   GLOBAL RESET
-   ================================================== */
-
-* {
+*, *::before, *::after {
   box-sizing: border-box;
-}
-
-
-html,
-body,
-#root {
-  width: 100%;
-  min-width: 100%;
-  min-height: 100%;
   margin: 0;
   padding: 0;
 }
 
-
-html {
+html, body, #root {
+  width: 100%;
   min-height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-
 
 body {
-  min-height: 100vh;
-
-  margin: 0;
-
-  background:
-    #11150f;
-
-  color:
-    #d7ddc8;
+  overflow-x: hidden;
+  background-color: var(--bg-base);
+  background-image: 
+    radial-gradient(ellipse at 80% 0%, rgba(6, 182, 212, 0.05), transparent 45%),
+    radial-gradient(ellipse at 20% 100%, rgba(16, 185, 129, 0.03), transparent 40%);
 }
 
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
 
-/* ==================================================
-   REMOVE DEFAULT BROWSER SPACING
-   ================================================== */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
 p {
-  margin: 0;
+  color: var(--text-secondary);
 }
-
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-
-/* ==================================================
-   BUTTON RESET
-   ================================================== */
-
-button {
-  border: 0;
-
-  outline: none;
-}
-
-
-/* ==================================================
-   LINKS
-   ================================================== */
 
 a {
-  color: inherit;
-
+  color: var(--color-info);
   text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
-
-/* ==================================================
-   IMAGES
-   ================================================== */
-
-img {
-  max-width: 100%;
-
-  display: block;
+a:hover {
+  color: #38bdf8;
 }
 
-
-/* ==================================================
-   SCROLLBAR
-   ================================================== */
-
-::-webkit-scrollbar {
-  width: 8px;
-
-  height: 8px;
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
 }
 
-
-::-webkit-scrollbar-track {
-  background:
-    #11150f;
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-
-::-webkit-scrollbar-thumb {
-  background:
-    #3d4930;
-
-  border-radius:
-    4px;
+/* Technical values (IDs, Timestamps, FPS, Counts) */
+.tech-value {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
 }
 
-
-::-webkit-scrollbar-thumb:hover {
-  background:
-    #566642;
+/* Tactical Labels */
+.tactical-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
+/* ============================================================
+   STATUS BADGES & INDICATORS
+   ============================================================ */
 
-/* ==================================================
-   SELECTION
-   ================================================== */
-
-::selection {
-  background:
-    rgba(130, 150, 90, 0.35);
-
-  color:
-    #edf2e4;
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
-/* =========================================================
-   AVEKSHA NETRA - DASHBOARD CAMERA CARD
-   ========================================================= */
 
-.dashboard-camera {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+.status-badge.online,
+.status-badge.active {
+  background: var(--color-online-dim);
+  color: var(--color-online);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.warning {
+  background: var(--color-warning-dim);
+  color: var(--color-warning);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.threat,
+.status-badge.critical {
+  background: var(--color-threat-dim);
+  color: var(--color-threat);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.status-badge.info {
+  background: var(--color-info-dim);
+  color: var(--color-info);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.status-badge.offline,
+.status-badge.stopped {
+  background: var(--color-offline-dim);
+  color: var(--color-offline);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+/* Status Dot with Live Radar Pulse */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+}
+
+.status-dot.online,
+.status-dot.active {
+  background: var(--color-online);
+  box-shadow: 0 0 8px var(--color-online);
+}
+
+.status-dot.pulse::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.6;
+  animation: radar-pulse 2s infinite ease-out;
+}
+
+.status-dot.threat,
+.status-dot.critical {
+  background: var(--color-threat);
+  box-shadow: 0 0 8px var(--color-threat);
+}
+
+.status-dot.warning {
+  background: var(--color-warning);
+}
+
+.status-dot.offline {
+  background: var(--color-offline);
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   TACTICAL CARDS & SURFACES
+   ============================================================ */
+
+.tactical-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  position: relative;
   overflow: hidden;
+  transition: border-color var(--transition-normal), background-color var(--transition-normal);
 }
 
+.tactical-card:hover {
+  border-color: var(--border-hover);
+}
 
-/* =========================================================
-   CAMERA VIDEO AREA
-   ========================================================= */
+/* Corner Tactical Marks */
+.tactical-corner {
+  position: relative;
+}
 
-.dashboard-camera .feed-area {
-  width: 100%;
-  height: 300px;
-  min-height: 300px;
-  max-height: 300px;
+.tactical-corner::before,
+.tactical-corner::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  pointer-events: none;
+  border-color: var(--border-hover);
+  border-style: solid;
+}
 
-  background: #05090c;
+.tactical-corner::before {
+  top: 0;
+  left: 0;
+  border-width: 1px 0 0 1px;
+}
 
-  overflow: hidden;
+.tactical-corner::after {
+  bottom: 0;
+  right: 0;
+  border-width: 0 1px 1px 0;
+}
 
-  display: flex;
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-
-/* =========================================================
-   LIVE VIDEO
-   ========================================================= */
-
-.dashboard-camera .live-feed {
-  display: block;
-
-  width: 100%;
-  height: 100%;
-
-  object-fit: cover;
-
-  background: #05090c;
-}
-
-
-/* =========================================================
-   CAMERA FOOTER
-   ========================================================= */
-
-.dashboard-camera .feed-footer {
-  min-height: 76px;
-
-  padding: 16px 20px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  gap: 20px;
-
-  background: #0b1217;
-
-  border-top: 1px solid #1d2b33;
-}
-
-
-/* CAMERA NAME + LOCATION */
-
-.dashboard-camera .feed-footer > div:first-child {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 5px;
-
-  min-width: 0;
-}
-
-
-.dashboard-camera .feed-footer strong {
-  color: #f1f5f7;
-
-  font-size: 15px;
-
-  font-weight: 600;
-
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  transition: all var(--transition-fast);
   white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
 }
 
+.btn-primary {
+  background: #0ea5e9;
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+}
 
-.dashboard-camera .feed-footer span {
-  color: #71838d;
+.btn-primary:hover:not(:disabled) {
+  background: #0284c7;
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+}
 
+.btn-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+  box-shadow: var(--shadow-glow-online);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  box-shadow: var(--shadow-glow-threat);
+}
+
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.btn-sm {
+  padding: 4px 10px;
   font-size: 12px;
 }
 
-
-/* =========================================================
-   CAMERA ACTIONS
-   ========================================================= */
-
-.dashboard-camera .camera-actions {
-  display: flex;
-
+.btn-icon {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
   align-items: center;
-
-  gap: 8px;
-
-  flex-shrink: 0;
-}
-
-
-/* EDIT */
-
-.dashboard-camera .camera-edit-button {
-  padding: 8px 12px;
-
-  border: 1px solid #334851;
-
-  background: transparent;
-
-  color: #8faebc;
-
-  font-size: 10px;
-
-  font-weight: 600;
-
-  letter-spacing: 1px;
-
-  cursor: pointer;
-
-  border-radius: 3px;
-}
-
-
-.dashboard-camera .camera-edit-button:hover {
-  border-color: #9aaa38;
-
-  color: #c4d24b;
-}
-
-
-/* DELETE */
-
-.dashboard-camera .camera-delete-button {
-  padding: 8px 12px;
-
-  border: 1px solid #63383b;
-
-  background: transparent;
-
-  color: #d87878;
-
-  font-size: 10px;
-
-  font-weight: 600;
-
-  letter-spacing: 1px;
-
-  cursor: pointer;
-
-  border-radius: 3px;
-}
-
-
-.dashboard-camera .camera-delete-button:hover {
-  background: #351719;
-
-  border-color: #d05b5b;
-
-  color: #ff8585;
-}
-
-
-/* DISABLED DELETE */
-
-.dashboard-camera .camera-delete-button:disabled {
-  opacity: 0.5;
-
-  cursor: not-allowed;
-}
-
-
-/* =========================================================
-   ACTIVE / OFFLINE STATUS
-   ========================================================= */
-
-.dashboard-camera .feed-status {
-  padding: 5px 8px;
-
-  border: 1px solid #39474d;
-
-  color: #65757c;
-
-  font-size: 9px;
-
-  letter-spacing: 1px;
-
-  border-radius: 3px;
-}
-
-
-.dashboard-camera .feed-status.active {
-  border-color: #285d4e;
-
-  color: #62cda9;
-
-  background: rgba(40, 93, 78, 0.12);
-}
-
-
-/* =========================================================
-   VIDEO PLACEHOLDER
-   ========================================================= */
-
-.dashboard-camera .feed-placeholder {
-  width: 100%;
-
-  height: 100%;
-
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-
   justify-content: center;
-
-  gap: 8px;
-
-  color: #6e818a;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
+.btn-icon:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
 
-.dashboard-camera .feed-placeholder span {
-  color: #a7b5ba;
+/* ============================================================
+   INPUTS & FORMS
+   ============================================================ */
 
+.tactical-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-family: var(--font-sans);
   font-size: 13px;
-
-  letter-spacing: 1px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.tactical-input:focus {
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 1px var(--color-info);
+}
 
-.dashboard-camera .feed-placeholder small {
-  color: #53656d;
+.tactical-input::placeholder {
+  color: var(--text-dim);
+}
 
-  font-size: 11px;
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: #ffffff;
 }

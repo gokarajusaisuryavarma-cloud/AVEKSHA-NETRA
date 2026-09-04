@@ -1,3 +1,4 @@
+import os
 from ultralytics import YOLO
 
 
@@ -5,11 +6,6 @@ from ultralytics import YOLO
 # AVEKSHA NETRA
 # AI OBJECT DETECTOR
 # ============================================================
-
-print("🤖 Loading YOLO detection model...")
-import os
-from ultralytics import YOLO
-
 
 MODEL_PATH = os.path.join(
     os.path.dirname(__file__),
@@ -20,8 +16,6 @@ print("🤖 Loading YOLO detection model...")
 print(f"📦 Model: {MODEL_PATH}")
 
 model = YOLO(MODEL_PATH)
-
-print("✅ YOLO detection model ready")
 
 print("✅ YOLO detection model ready")
 
@@ -47,17 +41,13 @@ VEHICLE_CLASSES = {
 # DETECT OBJECTS
 # ============================================================
 
-def analyze_frame(
-    frame,
-    confidence=0.40
-):
+def analyze_frame(frame, confidence=0.40):
 
     if frame is None:
-
         return {
-            "detections": []
+            "detections": [],
+            "count": 0
         }
-
 
     results = model.predict(
         source=frame,
@@ -65,13 +55,7 @@ def analyze_frame(
         verbose=False
     )
 
-
     detections = []
-
-
-    # ========================================================
-    # PROCESS YOLO RESULTS
-    # ========================================================
 
     for result in results:
 
@@ -80,111 +64,39 @@ def analyze_frame(
         if boxes is None:
             continue
 
-
         for box in boxes:
 
-            # ------------------------------------------------
-            # Bounding box
-            # ------------------------------------------------
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
 
-            x1, y1, x2, y2 = (
-                box.xyxy[0].tolist()
-            )
+            detection_confidence = float(box.conf[0])
 
+            class_id = int(box.cls[0])
 
-            # ------------------------------------------------
-            # Confidence
-            # ------------------------------------------------
-
-            detection_confidence = float(
-                box.conf[0]
-            )
-
-
-            # ------------------------------------------------
-            # Class
-            # ------------------------------------------------
-
-            class_id = int(
-                box.cls[0]
-            )
-
-            class_name = str(
-                model.names[class_id]
-            )
-
-
-            # ------------------------------------------------
-            # Category
-            # ------------------------------------------------
+            class_name = str(model.names[class_id])
 
             if class_name in PERSON_CLASSES:
-
                 category = "PERSON"
 
             elif class_name in VEHICLE_CLASSES:
-
                 category = "VEHICLE"
 
             else:
-
                 category = "OTHER"
 
-
-            # ------------------------------------------------
-            # Detection
-            #
-            # IMPORTANT:
-            # We provide both:
-            #
-            # class_name
-            # object_type
-            #
-            # because the tracker uses class_name while
-            # the event/ANPR system uses object_type.
-            # ------------------------------------------------
-
-            detection = {
-
-                "class_name":
-                    class_name,
-
-                "object_type":
-                    class_name,
-
-                "category":
-                    category,
-
-                "confidence":
-                    detection_confidence,
-
+            detections.append({
+                "class_name": class_name,
+                "object_type": class_name,
+                "category": category,
+                "confidence": detection_confidence,
                 "bbox": [
-
                     int(x1),
                     int(y1),
                     int(x2),
                     int(y2)
-
                 ]
-
-            }
-
-
-            detections.append(
-                detection
-            )
-
-
-    # ========================================================
-    # RETURN
-    # ========================================================
+            })
 
     return {
-
-        "detections":
-            detections,
-
-        "count":
-            len(detections)
-
+        "detections": detections,
+        "count": len(detections)
     }

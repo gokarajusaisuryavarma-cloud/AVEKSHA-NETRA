@@ -1088,7 +1088,9 @@ class CameraAIWorker:
             yield (
                 b"--frame\r\n"
                 b"Content-Type: image/jpeg\r\n"
-                b"Cache-Control: no-cache\r\n\r\n"
+                b"Content-Length: "
+                + str(len(frame_bytes)).encode()
+                + b"\r\n\r\n"
                 + frame_bytes
                 + b"\r\n"
             )

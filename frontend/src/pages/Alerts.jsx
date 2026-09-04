@@ -1,874 +1,411 @@
-import { useEffect, useState } from "react";
+/**
+ * AVEKSHA NETRA — Tactical Threat Alerts Center
+ * Prioritized threat alert dashboard derived from live surveillance events.
+ */
+
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSystem } from "../context/SystemContext";
+import { aiApi } from "../api";
+import StatusBadge from "../components/common/StatusBadge";
+import EmptyState from "../components/common/EmptyState";
+import CameraFeed from "../components/surveillance/CameraFeed";
 import "./Alerts.css";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000";
-function Alerts() {
-  // ============================================================
-  // STATE
-  // ============================================================
+export function Alerts({ onNavigateToOverview }) {
+  const { cameras, isOnline } = useSystem();
 
-  const [alerts, setAlerts] = useState([]);
-
-  const [counts, setCounts] = useState({
-    total: 0,
-    active: 0,
-    human: 0,
-    vehicle: 0,
-  });
-
-  const [summary, setSummary] = useState({
-    total_alerts: 0,
-    active_alerts: 0,
-    human_alerts: 0,
-    vehicle_alerts: 0,
-    retention_hours: 3,
-  });
-
+  // State
+  const [cameraEvents, setCameraEvents] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("ALL"); // 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  const [selectedCameraFilter, setSelectedCameraFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(() => new Set());
+  const [selectedAlertForInspection, setSelectedAlertForInspection] = useState(null);
 
   // ============================================================
-  // FETCH ALERT DATA
+  // FETCH EVENTS FROM ALL CAMERAS
   // ============================================================
+  const fetchAllCameraEvents = useCallback(async () => {
+    if (!cameras || cameras.length === 0) {
+      setLoading(false);
+      return;
+    }
 
-  const fetchAlertData = async () => {
     try {
-      setError("");
-
-      const [
-        alertsResponse,
-        activeResponse,
-        countResponse,
-        summaryResponse,
-      ] = await Promise.all([
-        fetch(`${API_BASE}/api/alerts`),
-        fetch(`${API_BASE}/api/alerts/active`),
-        fetch(`${API_BASE}/api/alerts/count`),
-        fetch(`${API_BASE}/api/alerts/summary`),
-      ]);
-
-      if (
-        !alertsResponse.ok ||
-        !activeResponse.ok ||
-        !countResponse.ok ||
-        !summaryResponse.ok
-      ) {
-        throw new Error("Alert API request failed");
+      const eventsMap = {};
+      for (const cam of cameras) {
+        try {
+          const res = await aiApi.getCameraEvents(cam.id);
+          eventsMap[cam.id] = Array.isArray(res?.events) ? res.events : [];
+        } catch {
+          eventsMap[cam.id] = [];
+        }
       }
-
-      const alertsData = await alertsResponse.json();
-      const activeData = await activeResponse.json();
-      const countData = await countResponse.json();
-      const summaryData = await summaryResponse.json();
-
-      // ========================================================
-      // EXTRACT ALL ALERTS
-      // ========================================================
-
-      let allAlerts = [];
-
-      if (Array.isArray(alertsData)) {
-        allAlerts = alertsData;
-      } else if (Array.isArray(alertsData?.alerts)) {
-        allAlerts = alertsData.alerts;
-      } else if (Array.isArray(alertsData?.data)) {
-        allAlerts = alertsData.data;
-      }
-
-      // ========================================================
-      // EXTRACT ACTIVE ALERTS
-      // ========================================================
-
-      let activeAlerts = [];
-
-      if (Array.isArray(activeData)) {
-        activeAlerts = activeData;
-      } else if (Array.isArray(activeData?.alerts)) {
-        activeAlerts = activeData.alerts;
-      } else if (Array.isArray(activeData?.data)) {
-        activeAlerts = activeData.data;
-      }
-
-      // ========================================================
-      // BACKEND SUMMARY
-      // ========================================================
-
-      const backendSummary = summaryData?.summary || {};
-
-      const totalAlerts = Number(
-        backendSummary.total_alerts ??
-          countData.total ??
-          allAlerts.length
-      );
-
-      const activeAlertsCount = Number(
-        backendSummary.active_alerts ??
-          countData.active ??
-          activeAlerts.length
-      );
-
-      const humanAlerts = Number(
-        backendSummary.human_alerts ??
-          countData.human ??
-          0
-      );
-
-      const vehicleAlerts = Number(
-        backendSummary.vehicle_alerts ??
-          countData.vehicle ??
-          0
-      );
-
-      const retentionHours = Number(
-        backendSummary.retention_hours ?? 3
-      );
-
-      // ========================================================
-      // SET COUNTS
-      // ========================================================
-
-      setCounts({
-        total: totalAlerts,
-        active: activeAlertsCount,
-        human: humanAlerts,
-        vehicle: vehicleAlerts,
-      });
-
-      // ========================================================
-      // SET SUMMARY
-      // ========================================================
-
-      setSummary({
-        total_alerts: totalAlerts,
-        active_alerts: activeAlertsCount,
-        human_alerts: humanAlerts,
-        vehicle_alerts: vehicleAlerts,
-        retention_hours: retentionHours,
-      });
-
-      // ========================================================
-      // SORT ALERTS - NEWEST FIRST
-      // ========================================================
-
-      const sortedAlerts = [...allAlerts].sort((a, b) => {
-        const timeA = new Date(
-          a?.timestamp ||
-            a?.created_at ||
-            a?.createdAt ||
-            0
-        ).getTime();
-
-        const timeB = new Date(
-          b?.timestamp ||
-            b?.created_at ||
-            b?.createdAt ||
-            0
-        ).getTime();
-
-        return timeB - timeA;
-      });
-
-      setAlerts(sortedAlerts);
-
-      console.log("✅ Alerts loaded:", {
-        total: totalAlerts,
-        active: activeAlertsCount,
-        human: humanAlerts,
-        vehicle: vehicleAlerts,
-        tableAlerts: sortedAlerts.length,
-      });
-    } catch (err) {
-      console.error("❌ Alert API error:", err);
-
-      setError(
-        "Unable to connect to alert service."
-      );
+      setCameraEvents(eventsMap);
     } finally {
       setLoading(false);
     }
-  };
-
-  // ============================================================
-  // INITIAL LOAD + AUTO REFRESH
-  // ============================================================
+  }, [cameras]);
 
   useEffect(() => {
-    fetchAlertData();
-
-    const interval = setInterval(() => {
-      fetchAlertData();
-    }, 3000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
+    fetchAllCameraEvents();
+    const interval = setInterval(fetchAllCameraEvents, 4000);
+    return () => clearInterval(interval);
+  }, [fetchAllCameraEvents]);
 
   // ============================================================
-  // NORMALIZE ALERT
+  // PROCESS EVENTS INTO STRUCTURED THREAT ALERTS
   // ============================================================
+  const processedAlerts = useMemo(() => {
+    const list = [];
 
-  const normalizeAlert = (alert) => {
-    if (!alert || typeof alert !== "object") {
-      return {
-        id: "unknown",
-        title: "Unknown Alert",
-        message: "AI detection event",
-        severity: "MEDIUM",
-        status: "ACTIVE",
-        camera_id: "--",
-        camera_name: "Unknown Camera",
-        location: "Unknown",
-        object_type: "UNKNOWN",
-        track_id: "--",
-        timestamp: null,
-      };
-    }
+    cameras.forEach((cam) => {
+      const events = cameraEvents[cam.id] || [];
+      events.forEach((ev) => {
+        const objType = String(ev.object_type || "unknown").toLowerCase().trim();
+        const alertId = `${cam.id}-${ev.track_id || ev.id || Math.random()}`;
 
-    return {
-      id:
-        alert.id ??
-        alert.alert_id ??
-        alert.alertId ??
-        "unknown",
+        // Classify severity based on detection classification
+        let severity = "LOW";
+        let title = "SURVEILLANCE DETECTION";
+        let threatCode = "TRK-01";
 
-      title:
-        alert.title ||
-        alert.event_type ||
-        alert.eventType ||
-        alert.alert_type ||
-        alert.alertType ||
-        "Security Alert",
+        if (["person", "human"].includes(objType)) {
+          severity = "HIGH";
+          title = "HUMAN PRESENCE IN SECTOR";
+          threatCode = "THR-HUMAN";
+        } else if (["car", "truck", "bus"].includes(objType)) {
+          severity = "MEDIUM";
+          title = "VEHICLE MOVEMENT DETECTED";
+          threatCode = "THR-VEHICLE";
+        } else if (["motorcycle", "bicycle"].includes(objType)) {
+          severity = "MEDIUM";
+          title = "TWO-WHEELER TRANSIT DETECTED";
+          threatCode = "THR-TRANSIT";
+        }
 
-      message:
-        alert.message ||
-        alert.description ||
-        "AI detection event",
+        const timestamp = ev.timestamp || ev.first_seen || new Date().toISOString();
 
-      severity:
-        String(
-          alert.severity ||
-            alert.priority ||
-            "MEDIUM"
-        ).toUpperCase(),
+        list.push({
+          id: alertId,
+          camera_id: cam.id,
+          camera_name: cam.name,
+          location: cam.location,
+          object_type: objType,
+          title,
+          threatCode,
+          severity,
+          confidence: ev.confidence,
+          timestamp,
+          isAcknowledged: acknowledgedAlerts.has(alertId),
+        });
+      });
+    });
 
-      status:
-        String(
-          alert.status ||
-            "ACTIVE"
-        ).toUpperCase(),
+    // Sort descending by timestamp
+    return list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  }, [cameras, cameraEvents, acknowledgedAlerts]);
 
-      camera_id:
-        alert.camera_id ??
-        alert.cameraId ??
-        "--",
+  // Filtered list
+  const filteredAlerts = useMemo(() => {
+    return processedAlerts.filter((alert) => {
+      // 1. Severity filter
+      if (severityFilter !== "ALL" && alert.severity !== severityFilter) {
+        return false;
+      }
+      // 2. Camera filter
+      if (selectedCameraFilter !== "ALL" && String(alert.camera_id) !== String(selectedCameraFilter)) {
+        return false;
+      }
+      // 3. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = alert.title.toLowerCase().includes(q);
+        const matchLoc = alert.location.toLowerCase().includes(q);
+        const matchCam = alert.camera_name.toLowerCase().includes(q);
+        const matchObj = alert.object_type.toLowerCase().includes(q);
+        if (!matchTitle && !matchLoc && !matchCam && !matchObj) return false;
+      }
+      return true;
+    });
+  }, [processedAlerts, severityFilter, selectedCameraFilter, searchQuery]);
 
-      camera_name:
-        alert.camera_name ||
-        alert.cameraName ||
-        "Unknown Camera",
+  // Count summaries
+  const counts = useMemo(() => {
+    let critical = 0;
+    let high = 0;
+    let medium = 0;
+    let low = 0;
 
-      location:
-        alert.location ||
-        alert.camera_location ||
-        "Unknown",
+    processedAlerts.forEach((a) => {
+      if (a.severity === "CRITICAL") critical++;
+      else if (a.severity === "HIGH") high++;
+      else if (a.severity === "MEDIUM") medium++;
+      else low++;
+    });
 
-      object_type:
-        alert.object_type ||
-        alert.objectType ||
-        alert.detected_object ||
-        alert.detectedObject ||
-        "unknown",
+    return { total: processedAlerts.length, critical, high, medium, low };
+  }, [processedAlerts]);
 
-      track_id:
-        alert.track_id ??
-        alert.trackId ??
-        "--",
-
-      timestamp:
-        alert.timestamp ||
-        alert.created_at ||
-        alert.createdAt ||
-        null,
-    };
-  };
-
-  // ============================================================
-  // FORMAT TIME
-  // ============================================================
-
-  const formatTime = (value) => {
-    if (!value) {
-      return "--:--:--";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return "--:--:--";
-    }
-
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
+  // Toggle acknowledge
+  const handleAcknowledge = (alertId, e) => {
+    e?.stopPropagation();
+    setAcknowledgedAlerts((prev) => {
+      const next = new Set(prev);
+      if (next.has(alertId)) {
+        next.delete(alertId);
+      } else {
+        next.add(alertId);
+      }
+      return next;
     });
   };
-
-  // ============================================================
-  // FORMAT DATE
-  // ============================================================
-
-  const formatDate = (value) => {
-    if (!value) {
-      return "--";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return "--";
-    }
-
-    return date.toLocaleDateString([], {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  // ============================================================
-  // FORMAT CAMERA
-  // ============================================================
-
-  const formatCamera = (cameraId) => {
-    if (
-      cameraId === null ||
-      cameraId === undefined ||
-      cameraId === "--"
-    ) {
-      return "CAM----";
-    }
-
-    const cameraString = String(cameraId);
-
-    if (cameraString.toUpperCase().startsWith("CAM-")) {
-      return cameraString.toUpperCase();
-    }
-
-    return `CAM-${cameraString.padStart(3, "0")}`;
-  };
-
-  // ============================================================
-  // FORMAT OBJECT
-  // ============================================================
-
-  const formatObject = (objectType) => {
-    if (!objectType) {
-      return "UNKNOWN";
-    }
-
-    return String(objectType).toUpperCase();
-  };
-
-  // ============================================================
-  // NORMALIZED ALERTS
-  // ============================================================
-
-  const normalizedAlerts = alerts.map(normalizeAlert);
-
-  // ============================================================
-  // LOCAL SEVERITY COUNTS
-  // ============================================================
-
-  const criticalCount = normalizedAlerts.filter(
-    (alert) => alert.severity === "CRITICAL"
-  ).length;
-
-  const highCount = normalizedAlerts.filter(
-    (alert) => alert.severity === "HIGH"
-  ).length;
-
-  const mediumCount = normalizedAlerts.filter(
-    (alert) => alert.severity === "MEDIUM"
-  ).length;
-
-  const lowCount = normalizedAlerts.filter(
-    (alert) => alert.severity === "LOW"
-  ).length;
-
-  // ============================================================
-  // RENDER
-  // ============================================================
 
   return (
-    <div className="alerts-page">
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
+    <div className="alerts-center-container">
+      {/* 1. Header & Severity Summary Tabs */}
       <div className="alerts-header">
-
         <div>
-          <span className="section-label">
-            THREAT MONITOR
-          </span>
-
-          <h2>
-            Alert Center
-          </h2>
-
-          <p>
-            Real-time security alerts generated
-            by the AVEKSHA NETRA surveillance
-            network.
+          <h1 className="command-title">THREAT ALERTS CENTER</h1>
+          <p className="command-subtitle">
+            Real-time security alerts prioritized by risk level and object classification
           </p>
         </div>
 
-        <div className="alert-system-status">
+        <div className="alerts-summary-chips">
+          <div
+            className={`summary-chip ${severityFilter === "ALL" ? "active" : ""}`}
+            onClick={() => setSeverityFilter("ALL")}
+          >
+            <span className="chip-count tech-value">{counts.total}</span>
+            <span className="chip-name">ALL ALERTS</span>
+          </div>
 
-          <span
-            className={
-              error
-                ? "alert-status-dot offline"
-                : "alert-status-dot"
-            }
-          />
+          <div
+            className={`summary-chip tone-high ${severityFilter === "HIGH" ? "active" : ""}`}
+            onClick={() => setSeverityFilter("HIGH")}
+          >
+            <span className="chip-count tech-value">{counts.high}</span>
+            <span className="chip-name">HIGH (HUMAN)</span>
+          </div>
 
-          {error
-            ? "ALERT SERVICE OFFLINE"
-            : "ALERT SYSTEM ONLINE"}
+          <div
+            className={`summary-chip tone-med ${severityFilter === "MEDIUM" ? "active" : ""}`}
+            onClick={() => setSeverityFilter("MEDIUM")}
+          >
+            <span className="chip-count tech-value">{counts.medium}</span>
+            <span className="chip-name">MEDIUM (VEHICLE)</span>
+          </div>
 
+          <div
+            className={`summary-chip tone-low ${severityFilter === "LOW" ? "active" : ""}`}
+            onClick={() => setSeverityFilter("LOW")}
+          >
+            <span className="chip-count tech-value">{counts.low}</span>
+            <span className="chip-name">LOW RISK</span>
+          </div>
         </div>
-
       </div>
 
-
-      {/* ======================================================
-          STATISTICS
-      ====================================================== */}
-
-      <section className="alert-stats">
-
-        <div className="alert-stat-card critical">
-
-          <span>
-            CRITICAL
-          </span>
-
-          <strong>
-            {criticalCount}
-          </strong>
-
-          <small>
-            Immediate attention
-          </small>
-
+      {/* 2. Controls & Search Filter Bar */}
+      <div className="alerts-filter-bar">
+        <div className="filter-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search alerts by sector, object, or camera..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="tactical-input"
+          />
         </div>
 
-
-        <div className="alert-stat-card high">
-
-          <span>
-            HIGH
-          </span>
-
-          <strong>
-            {highCount}
-          </strong>
-
-          <small>
-            High priority alerts
-          </small>
-
+        <div className="filter-select-wrap">
+          <select
+            value={selectedCameraFilter}
+            onChange={(e) => setSelectedCameraFilter(e.target.value)}
+            className="tactical-input select-input"
+          >
+            <option value="ALL">ALL CAMERAS</option>
+            {cameras.map((c) => (
+              <option key={c.id} value={c.id}>
+                CAM-{String(c.id).padStart(3, "0")} ({c.name})
+              </option>
+            ))}
+          </select>
         </div>
 
+        <button onClick={fetchAllCameraEvents} className="btn btn-secondary btn-sm" title="Refresh Feed">
+          REFRESH
+        </button>
+      </div>
 
-        <div className="alert-stat-card medium">
-
-          <span>
-            MEDIUM
-          </span>
-
-          <strong>
-            {mediumCount}
-          </strong>
-
-          <small>
-            Requires monitoring
-          </small>
-
-        </div>
-
-
-        <div className="alert-stat-card total">
-
-          <span>
-            TOTAL ALERTS
-          </span>
-
-          <strong>
-            {counts.total}
-          </strong>
-
-          <small>
-            All recorded alerts
-          </small>
-
-        </div>
-
-      </section>
-
-
-      {/* ======================================================
-          BACKEND SUMMARY
-      ====================================================== */}
-
-      <section className="alert-summary">
-
-        <div className="summary-item">
-
-          <span>
-            ACTIVE
-          </span>
-
-          <strong>
-            {counts.active}
-          </strong>
-
-        </div>
-
-
-        <div className="summary-item">
-
-          <span>
-            HUMAN
-          </span>
-
-          <strong>
-            {counts.human}
-          </strong>
-
-        </div>
-
-
-        <div className="summary-item">
-
-          <span>
-            VEHICLE
-          </span>
-
-          <strong>
-            {counts.vehicle}
-          </strong>
-
-        </div>
-
-
-        <div className="summary-item">
-
-          <span>
-            TOTAL EVENTS
-          </span>
-
-          <strong>
-            {summary.total_alerts}
-          </strong>
-
-        </div>
-
-      </section>
-
-
-      {/* ======================================================
-          ALERT TABLE
-      ====================================================== */}
-
-      <section className="alert-table-section">
-
-        <div className="alert-table-header">
-
-          <div>
-
-            <span className="section-label">
-              SECURITY EVENTS
-            </span>
-
-            <h3>
-              Recent Alerts
-            </h3>
-
+      {/* 3. Alerts List Feed */}
+      <div className="alerts-feed-wrapper">
+        {loading ? (
+          <div className="alerts-loading">
+            <div className="feed-radar-spinner"></div>
+            <p>SYNCING SURVEILLANCE EVENTS...</p>
           </div>
+        ) : filteredAlerts.length === 0 ? (
+          <EmptyState
+            title="NO THREAT ALERTS DETECTED"
+            subtitle="The YOLO AI vision worker has not reported any matching detections in this filter range."
+            actionLabel="View All Feeds"
+            onAction={() => {
+              setSeverityFilter("ALL");
+              setSelectedCameraFilter("ALL");
+              setSearchQuery("");
+            }}
+          />
+        ) : (
+          <div className="alerts-table-container">
+            <table className="tactical-alerts-table">
+              <thead>
+                <tr>
+                  <th>SEVERITY</th>
+                  <th>TIMESTAMP</th>
+                  <th>THREAT TYPE</th>
+                  <th>LOCATION / CAMERA</th>
+                  <th>OBJECT</th>
+                  <th>CONFIDENCE</th>
+                  <th>STATUS</th>
+                  <th style={{ textAlign: "right" }}>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAlerts.map((alert) => {
+                  const timeFormatted = new Date(alert.timestamp).toLocaleTimeString("en-US", {
+                    hour12: false,
+                  });
 
-          <div className="alert-table-meta">
+                  return (
+                    <tr
+                      key={alert.id}
+                      className={`alert-row ${alert.isAcknowledged ? "acknowledged" : ""}`}
+                    >
+                      <td>
+                        <StatusBadge
+                          status={alert.severity === "HIGH" ? "threat" : "warning"}
+                          label={alert.severity}
+                          size="sm"
+                          showDot={!alert.isAcknowledged}
+                          pulse={!alert.isAcknowledged && alert.severity === "HIGH"}
+                        />
+                      </td>
 
-            <span>
-              LOW: {lowCount}
-            </span>
+                      <td className="tech-value time-cell">{timeFormatted}</td>
 
-            <span>
-              ACTIVE: {counts.active}
-            </span>
+                      <td className="title-cell">
+                        <div className="alert-event-name">{alert.title}</div>
+                        <div className="alert-code tech-value">{alert.threatCode}</div>
+                      </td>
 
-            <span>
-              RETENTION: {summary.retention_hours}H
-            </span>
+                      <td>
+                        <div className="location-name">{alert.location}</div>
+                        <div className="camera-tag tech-value">
+                          CAM-{String(alert.camera_id).padStart(3, "0")} // {alert.camera_name}
+                        </div>
+                      </td>
 
+                      <td>
+                        <span className="object-chip tech-value">
+                          {alert.object_type.toUpperCase()}
+                        </span>
+                      </td>
+
+                      <td className="tech-value">
+                        {alert.confidence ? (
+                          <span className="confidence-chip">
+                            {Math.round(alert.confidence * 100)}%
+                          </span>
+                        ) : (
+                          "--"
+                        )}
+                      </td>
+
+                      <td>
+                        <span className={`status-pill ${alert.isAcknowledged ? "ack" : "active"}`}>
+                          {alert.isAcknowledged ? "ACKNOWLEDGED" : "ACTIVE"}
+                        </span>
+                      </td>
+
+                      <td style={{ textAlign: "right" }}>
+                        <div className="row-actions">
+                          <button
+                            onClick={() => setSelectedAlertForInspection(alert)}
+                            className="btn-action-inspect"
+                            title="Inspect Camera Feed"
+                          >
+                            VIEW CAM
+                          </button>
+                          <button
+                            onClick={(e) => handleAcknowledge(alert.id, e)}
+                            className={`btn-action-ack ${alert.isAcknowledged ? "is-ack" : ""}`}
+                            title={alert.isAcknowledged ? "Mark as Active" : "Acknowledge Threat"}
+                          >
+                            {alert.isAcknowledged ? "ACKED" : "ACKNOWLEDGE"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+        )}
+      </div>
 
-        </div>
-
-
-        <div className="alert-table">
-
-          {/* ==================================================
-              TABLE HEADER
-          ================================================== */}
-
-          <div className="alert-table-row alert-table-heading">
-
-            <span>
-              TIME
-            </span>
-
-            <span>
-              CAMERA
-            </span>
-
-            <span>
-              EVENT
-            </span>
-
-            <span>
-              OBJECT
-            </span>
-
-            <span>
-              SEVERITY
-            </span>
-
-            <span>
-              STATUS
-            </span>
-
-          </div>
-
-
-          {/* ==================================================
-              LOADING
-          ================================================== */}
-
-          {loading ? (
-
-            <div className="alert-table-empty">
-
-              <span className="empty-alert-icon">
-                ◌
-              </span>
-
-              <strong>
-                Loading security events
-              </strong>
-
-              <small>
-                Connecting to alert service...
-              </small>
-
-            </div>
-
-          ) : error ? (
-
-            /* ==================================================
-               ERROR
-            ================================================== */
-
-            <div className="alert-table-empty">
-
-              <span className="empty-alert-icon">
-                !
-              </span>
-
-              <strong>
-                Alert service unavailable
-              </strong>
-
-              <small>
-                Check that the FastAPI backend
-                is running on port 8000.
-              </small>
-
-              <button
-                type="button"
-                onClick={fetchAlertData}
-                className="alert-retry-button"
-              >
-                Retry Connection
+      {/* 4. Camera Feed Inspection Modal */}
+      {selectedAlertForInspection && (
+        <div className="tactical-modal-backdrop" onClick={() => setSelectedAlertForInspection(null)}>
+          <div className="tactical-modal modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                LIVE THREAT FEED // CAM-{String(selectedAlertForInspection.camera_id).padStart(3, "0")} - {selectedAlertForInspection.camera_name}
+              </div>
+              <button onClick={() => setSelectedAlertForInspection(null)} className="btn-modal-close">
+                ✕
               </button>
-
             </div>
 
-          ) : normalizedAlerts.length === 0 ? (
-
-            /* ==================================================
-               NO ALERTS
-            ================================================== */
-
-            <div className="alert-table-empty">
-
-              <span className="empty-alert-icon">
-                △
-              </span>
-
-              <strong>
-                No security alerts recorded
-              </strong>
-
-              <small>
-                AI detection events will appear
-                here when threats are identified.
-              </small>
-
+            <div className="modal-viewport-wrap">
+              <CameraFeed
+                cameraId={selectedAlertForInspection.camera_id}
+                isAiActive={true}
+                cameraName={selectedAlertForInspection.camera_name}
+                location={selectedAlertForInspection.location}
+              />
             </div>
 
-          ) : (
-
-            /* ==================================================
-               ALERT ROWS
-            ================================================== */
-
-            <div className="alert-table-body">
-
-              {normalizedAlerts
-                .slice(0, 50)
-                .map((alert, index) => (
-
-                  <div
-                    className="alert-table-row"
-                    key={`${alert.id}-${index}`}
-                  >
-
-                    {/* TIME */}
-
-                    <span>
-
-                      <strong>
-                        {formatTime(
-                          alert.timestamp
-                        )}
-                      </strong>
-
-                      <small>
-                        {formatDate(
-                          alert.timestamp
-                        )}
-                      </small>
-
-                    </span>
-
-
-                    {/* CAMERA */}
-
-                    <span>
-
-                      <strong>
-                        {formatCamera(
-                          alert.camera_id
-                        )}
-                      </strong>
-
-                      <small>
-                        {alert.camera_name}
-                      </small>
-
-                      <small>
-                        {alert.location}
-                      </small>
-
-                    </span>
-
-
-                    {/* EVENT */}
-
-                    <span>
-
-                      <strong>
-                        {alert.title}
-                      </strong>
-
-                      <small>
-                        {alert.message}
-                      </small>
-
-                    </span>
-
-
-                    {/* OBJECT */}
-
-                    <span>
-
-                      <strong>
-                        {formatObject(
-                          alert.object_type
-                        )}
-                      </strong>
-
-                      {alert.track_id !== "--" && (
-
-                        <small>
-                          Track #{alert.track_id}
-                        </small>
-
-                      )}
-
-                    </span>
-
-
-                    {/* SEVERITY */}
-
-                    <span>
-
-                      <b
-                        className={
-                          `severity-${alert.severity.toLowerCase()}`
-                        }
-                      >
-                        {alert.severity}
-                      </b>
-
-                    </span>
-
-
-                    {/* STATUS */}
-
-                    <span>
-
-                      <b
-                        className={
-                          alert.status === "ACTIVE"
-                            ? "status-active"
-                            : "status-ended"
-                        }
-                      >
-                        {alert.status}
-                      </b>
-
-                    </span>
-
-                  </div>
-
-                ))}
-
+            <div className="modal-threat-details">
+              <div className="threat-detail-col">
+                <span className="detail-label">INCIDENT TYPE:</span>
+                <strong>{selectedAlertForInspection.title}</strong>
+              </div>
+              <div className="threat-detail-col">
+                <span className="detail-label">LOCATION:</span>
+                <strong>{selectedAlertForInspection.location}</strong>
+              </div>
+              <div className="threat-detail-col">
+                <span className="detail-label">SEVERITY:</span>
+                <StatusBadge status={selectedAlertForInspection.severity === "HIGH" ? "threat" : "warning"} label={selectedAlertForInspection.severity} />
+              </div>
             </div>
 
-          )}
-
+            <div className="modal-footer">
+              <button onClick={() => setSelectedAlertForInspection(null)} className="btn btn-secondary btn-sm">
+                CLOSE FEED
+              </button>
+            </div>
+          </div>
         </div>
-
-      </section>
-
+      )}
     </div>
   );
 }

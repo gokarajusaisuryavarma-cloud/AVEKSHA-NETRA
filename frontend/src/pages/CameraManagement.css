@@ -1,470 +1,233 @@
-.camera-management-page {
+/* ============================================================
+   AVEKSHA NETRA — CAMERA MANAGEMENT & WALL STYLES
+   ============================================================ */
+
+.camera-management-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
 }
 
-
-/* =========================================
-   PAGE HEADER
-========================================= */
-
-.camera-page-header {
+.cameras-page-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 32px;
-}
-
-.camera-page-header h2 {
-  margin: 8px 0;
-  font-size: 34px;
-  font-weight: 600;
-  color: #f2f5f7;
-}
-
-.camera-page-header p {
-  margin: 0;
-  color: #718596;
-  font-size: 14px;
-}
-
-
-/* =========================================
-   CAMERA CARD
-========================================= */
-
-.camera-management-card {
-  background: #0c1318;
-  border: 1px solid #1d2a31;
-  border-radius: 8px;
-  padding: 28px;
-  margin-bottom: 24px;
-}
-
-
-/* =========================================
-   CARD HEADER
-========================================= */
-
-.camera-card-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-
-  padding-bottom: 22px;
-  margin-bottom: 26px;
-
-  border-bottom: 1px solid #1d2a31;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 16px;
 }
 
-.camera-card-header h3 {
-  margin: 8px 0 0;
-
-  font-size: 20px;
-  font-weight: 600;
-
-  color: #eaf0f3;
-}
-
-.camera-status-badge {
-  padding: 7px 12px;
-
-  border: 1px solid #394b54;
-  border-radius: 4px;
-
-  color: #8ea1ad;
-
-  font-size: 10px;
-  letter-spacing: 1.5px;
-}
-
-
-/* =========================================
-   FORM
-========================================= */
-
-.camera-form {
+.cameras-header-controls {
   display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  color: #9aadb8;
-
-  font-size: 12px;
-  letter-spacing: 1.2px;
-
-  text-transform: uppercase;
-}
-
-.form-group input {
-  width: 100%;
-  box-sizing: border-box;
-
-  padding: 14px 15px;
-
-  background: #080d11;
-
-  border: 1px solid #26353d;
-  border-radius: 5px;
-
-  color: #e9eef1;
-
-  font-size: 14px;
-
-  outline: none;
-
-  transition: border-color 0.2s ease;
-}
-
-.form-group input::placeholder {
-  color: #4e626e;
-}
-
-.form-group input:focus {
-  border-color: #7f8f39;
-}
-
-.form-group small {
-  color: #526873;
-
-  font-size: 11px;
-}
-
-
-/* =========================================
-   FORM BUTTONS
-========================================= */
-
-.camera-form-actions {
-  display: flex;
-  justify-content: flex-end;
-
+  align-items: center;
   gap: 12px;
-
-  margin-top: 8px;
 }
 
-.camera-form-actions button {
-  padding: 12px 20px;
+/* View Mode Tabs */
+.view-mode-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
 
-  border-radius: 4px;
-
+.view-tab-btn {
+  padding: 6px 14px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 600;
-
-  letter-spacing: 1px;
-
-  cursor: pointer;
-
-  transition: 0.2s ease;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
 }
 
-.camera-form-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.view-tab-btn:hover {
+  color: var(--text-primary);
 }
 
-
-/* =========================================
-   TEST CONNECTION
-========================================= */
-
-.test-camera-button {
-  background: transparent;
-
-  border: 1px solid #40515a;
-
-  color: #9aadb8;
+.view-tab-btn.active {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
-.test-camera-button:hover {
-  border-color: #7f8f39;
-  color: #d2dc93;
+/* Feedback Banner */
+.tactical-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
 }
 
-
-/* =========================================
-   ADD / UPDATE
-========================================= */
-
-.add-camera-button {
-  background: #7f8f39;
-
-  border: 1px solid #7f8f39;
-
-  color: #071008;
+.tactical-banner.success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
-.add-camera-button:hover {
-  background: #94a64a;
+.tactical-banner.error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
 }
 
-
-/* =========================================
-   CANCEL EDIT
-========================================= */
-
-.cancel-camera-button {
-  background: transparent;
-
-  border: 1px solid #40515a;
-
-  color: #718596;
+.banner-icon {
+  font-weight: 700;
+  font-size: 14px;
 }
 
-.cancel-camera-button:hover {
-  border-color: #718596;
-  color: #d5dde1;
+.banner-text {
+  flex: 1;
 }
 
+.btn-banner-close {
+  color: inherit;
+  opacity: 0.7;
+}
 
-/* =========================================
-   CAMERA LIST
-========================================= */
+.btn-banner-close:hover {
+  opacity: 1;
+}
 
-.camera-list {
+/* Camera Wall Grid */
+.camera-wall-view {
+  width: 100%;
+}
+
+.camera-wall-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+}
+
+/* Config View */
+.camera-config-view {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 24px;
 }
 
-.camera-list-item {
+.card-top-header {
+  padding: 12px 18px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-
-  padding: 18px 20px;
-
-  background: #080d11;
-
-  border: 1px solid #1d2a31;
-  border-radius: 6px;
-
-  transition: border-color 0.2s ease;
+  justify-content: space-between;
 }
 
-.camera-list-item:hover {
-  border-color: #33454e;
+.section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.06em;
 }
 
+/* Form */
+.tactical-form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-/* =========================================
-   CAMERA INFORMATION
-========================================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
 
-.camera-list-info {
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-
-  min-width: 0;
 }
 
-.camera-list-info strong {
-  color: #e9eef1;
-
-  font-size: 14px;
-  font-weight: 600;
+.form-field.full-width {
+  grid-column: 1 / -1;
 }
 
-.camera-list-info span {
-  color: #718596;
-
-  font-size: 12px;
-}
-
-
-/* =========================================
-   CAMERA RIGHT SIDE
-========================================= */
-
-.camera-list-right {
-  display: flex;
-  align-items: center;
-
-  gap: 22px;
-}
-
-
-/* =========================================
-   CAMERA META
-========================================= */
-
-.camera-list-meta {
-  display: flex;
-  align-items: center;
-
-  gap: 14px;
-}
-
-.camera-list-meta span {
-  color: #647985;
-
+.form-field label {
+  font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
 }
 
-
-/* =========================================
-   ACTIVE / INACTIVE
-========================================= */
-
-.camera-online {
-  color: #a8bd55 !important;
-}
-
-.camera-offline {
-  color: #9a5555 !important;
-}
-
-
-/* =========================================
-   CAMERA ACTIONS
-========================================= */
-
-.camera-list-actions {
+.input-with-action {
   display: flex;
-  align-items: center;
-
   gap: 8px;
 }
 
-.camera-list-actions button {
+.btn-test-rtsp {
+  white-space: nowrap;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.rtsp-test-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 12px;
-
-  border-radius: 4px;
-
-  font-size: 10px;
-  font-weight: 600;
-
-  letter-spacing: 0.8px;
-
-  cursor: pointer;
-
-  transition: 0.2s ease;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
 }
 
-
-/* =========================================
-   EDIT BUTTON
-========================================= */
-
-.edit-camera-button {
-  background: transparent;
-
-  border: 1px solid #40515a;
-
-  color: #9aadb8;
+.rtsp-test-badge.success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
 }
 
-.edit-camera-button:hover {
-  border-color: #7f8f39;
-
-  color: #d2dc93;
+.rtsp-test-badge.failed {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
 }
 
-
-/* =========================================
-   DELETE BUTTON
-========================================= */
-
-.delete-camera-button {
-  background: transparent;
-
-  border: 1px solid #53383b;
-
-  color: #a87979;
+.rtsp-test-badge .badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.delete-camera-button:hover {
-  border-color: #a95555;
-
-  background: #241416;
-
-  color: #d68b8b;
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
 }
 
-
-/* =========================================
-   EMPTY STATE
-========================================= */
-
-.camera-list-empty {
-  padding: 35px 20px;
-
-  text-align: center;
-
-  color: #526873;
-
-  font-size: 13px;
-
-  border: 1px dashed #26353d;
-  border-radius: 6px;
+/* Inventory Table */
+.inventory-card {
+  overflow: hidden;
 }
 
-
-/* =========================================
-   RESPONSIVE
-========================================= */
-
-@media (max-width: 800px) {
-
-  .camera-list-item {
-    flex-direction: column;
-    align-items: flex-start;
-
-    gap: 18px;
-  }
-
-  .camera-list-right {
-    width: 100%;
-
-    justify-content: space-between;
-
-    gap: 15px;
-  }
-
-}
-
-@media (max-width: 600px) {
-
-  .camera-management-card {
-    padding: 20px;
-  }
-
-  .camera-form-actions {
-    flex-direction: column;
-  }
-
-  .camera-form-actions button {
-    width: 100%;
-  }
-
-  .camera-list-right {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .camera-list-meta {
-    flex-wrap: wrap;
-  }
-
-  .camera-list-actions {
-    width: 100%;
-  }
-
-  .camera-list-actions button {
-    flex: 1;
-  }
-
+.url-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -1,7 +1,5 @@
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000";
 import { useState } from "react";
+import { authApi } from "../api";
 import "./Login.css";
 
 function Login({ onLogin, onBack, onRegister }) {
@@ -10,89 +8,95 @@ function Login({ onLogin, onBack, onRegister }) {
     const [password, setPassword] = useState("");
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [error, setError] = useState(null);
 
     const handleLogin = async (event) => {
-
         event.preventDefault();
+        if (loading) return;
 
-        setError("");
+        setError(null);
 
-        if (!username.trim() || !password) {
+        const cleanUsername = username.trim();
+        if (!cleanUsername) {
+            setError({
+                code: "INPUT REQUIRED",
+                message: "Please enter your operator username.",
+            });
+            return;
+        }
 
-            setError(
-                "Please enter username and password."
-            );
-
+        if (!password) {
+            setError({
+                code: "INPUT REQUIRED",
+                message: "Please enter your password.",
+            });
             return;
         }
 
         setLoading(true);
 
         try {
+            const data = await authApi.login({
+                username: cleanUsername,
+                password: password,
+            });
 
-            const response = await fetch(`${API_BASE}/api/auth/login`, {
-                    method: "POST",
+            // Store session
+            authApi.saveSession(data.access_token, data.user);
 
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        username: username.trim(),
-                        password: password
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.detail ||
-                    "Invalid username or password"
-                );
-            }
-
-            // ==================================================
-            // STORE AUTHENTICATION INFORMATION
-            // ==================================================
-
-            localStorage.setItem(
-                "aveksha_token",
-                data.access_token
-            );
-
-            localStorage.setItem(
-                "aveksha_user",
-                JSON.stringify(data.user)
-            );
-
-            // ==================================================
-            // OPEN DASHBOARD
-            // ==================================================
-
+            // Open command center
             onLogin(data.user);
+        } catch (err) {
+            console.error("Login attempt failed:", err);
 
-        } catch (error) {
+            const status = err?.status;
+            const rawMsg = String(err?.message || "").toLowerCase();
+            const detailMsg = String(err?.data?.detail || "").toLowerCase();
 
-            console.error(
-                "Login error:",
-                error
-            );
-
-            setError(
-                error.message ||
-                "Unable to connect to server."
-            );
-
+            // Case 1: Backend unreachable / network failure
+            if (
+                err?.isNetworkError ||
+                !status ||
+                err?.name === "TypeError" ||
+                rawMsg.includes("failed to fetch") ||
+                rawMsg.includes("network") ||
+                rawMsg.includes("unavailable") ||
+                rawMsg.includes("connection")
+            ) {
+                setError({
+                    code: "CONNECTION ERROR",
+                    message: "Authentication service unavailable.",
+                    subtext: "Please verify the backend connection and try again.",
+                });
+            } else if (
+                status === 401 ||
+                status === 403 ||
+                rawMsg.includes("invalid") ||
+                detailMsg.includes("invalid") ||
+                detailMsg.includes("password") ||
+                detailMsg.includes("user")
+            ) {
+                // Case 2: Invalid username or password
+                setError({
+                    code: "ACCESS DENIED",
+                    message: "Invalid username or password.",
+                });
+            } else if (status >= 500) {
+                // Case 3: Server internal error
+                setError({
+                    code: "SERVER ERROR",
+                    message: "Unable to complete sign-in. Please try again.",
+                });
+            } else {
+                // Default clean message
+                setError({
+                    code: "AUTHENTICATION NOTICE",
+                    message: err?.message || "Unable to complete sign-in. Please try again.",
+                });
+            }
         } finally {
-
             setLoading(false);
-
         }
-
     };
 
 
@@ -217,11 +221,20 @@ function Login({ onLogin, onBack, onRegister }) {
                         ================================================== */}
 
                     {error && (
-
-                        <div className="login-error">
-                            ⚠ {error}
+                        <div className="login-error" role="alert">
+                            <div className="login-error-badge">
+                                <span className="error-icon">⚠</span>
+                                <span>[ {error.code || "AUTHENTICATION NOTICE"} ]</span>
+                            </div>
+                            <div className="login-error-text">
+                                {error.message || error}
+                            </div>
+                            {error.subtext && (
+                                <div className="login-error-subtext">
+                                    {error.subtext}
+                                </div>
+                            )}
                         </div>
-
                     )}
 
 
